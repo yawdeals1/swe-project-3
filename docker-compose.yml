@@ -14,6 +14,13 @@
 # translate them from Deploro's postgres://user:pass@host/db form into a JDBC url. For local dev
 # without a deployed VPS database, export DATABASE_URL_INTERNAL yourself before `docker compose
 # up` (see README) — pointing at the same Deploro-hosted Postgres, or any Postgres you run.
+#
+# "backend" deliberately publishes no host port. "web" reaches it at http://backend:8080 over
+# the internal docker network regardless — a published port is only for reaching a service
+# directly from the host, and this VPS is shared across projects, so binding a common port like
+# 8080 here collides with whatever else is already running there ("port is already allocated").
+# For direct Postman/curl access during local dev, run `mvn spring-boot:run` outside Docker
+# instead (binds :8080 on your own machine, no conflict).
 services:
   backend:
     build:
@@ -25,8 +32,6 @@ services:
       - ADMIN_SEED_EMAIL=${ADMIN_SEED_EMAIL:-admin@carvo.local}
       - ADMIN_SEED_PASSWORD=${ADMIN_SEED_PASSWORD:-changeme123}
       - PORT=8080
-    ports:
-      - "8080:8080" # published for local dev convenience (Postman/curl); not required in prod
 
   web:
     build:
