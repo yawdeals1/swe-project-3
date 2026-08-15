@@ -1,0 +1,52 @@
+# Service names matter here: Deploro's VPS deploy auto-detects a published HTTP port and
+# prefers a service literally named app/web/server/api/backend (in that order) to become the
+# public {slug}.deploro.app URL. Naming the Next.js service "web" (not "frontend") ensures it
+# — not the raw API — is what the public URL routes to, keeping this a single-origin app: the
+# browser only ever talks to "web", which proxies API calls server-side to "backend" over the
+# internal docker network. That avoids CORS and cross-origin cookie/auth issues entirely.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: carvo
+      POSTGRES_USER: carvo
+      POSTGRES_PASSWORD: carvo
+    ports:
+      - "5432:5432"
+    volumes:
+      - carvo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carvo -d carvo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/carvo
+      DATABASE_USER: carvo
+      DATABASE_PASSWORD: carvo
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-dev-only-secret-change-me}
+      PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080" # published for local dev convenience (Postman/curl); not required in prod
+
+  web:
+    build:
+      context: ./frontend
+    environment:
+      # server-side only (Next.js Route Handlers proxy through this) — never exposed to the browser
+      BACKEND_INTERNAL_URL: http://backend:8080
+      PORT: 3000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  carvo-postgres-data:
