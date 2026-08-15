@@ -1,0 +1,132 @@
+package com.carvo.api.service;
+
+import com.carvo.api.dto.admin.BranchRequest;
+import com.carvo.api.dto.admin.BranchResponse;
+import com.carvo.api.dto.admin.CreateStaffRequest;
+import com.carvo.api.dto.admin.DashboardResponse;
+import com.carvo.api.dto.admin.UpdateStaffRequest;
+import com.carvo.api.dto.common.UserSummary;
+import com.carvo.api.entity.Branch;
+import com.carvo.api.entity.User;
+import com.carvo.api.entity.enums.BookingStatus;
+import com.carvo.api.entity.enums.Role;
+import com.carvo.api.entity.enums.UserStatus;
+import com.carvo.api.entity.enums.VehicleStatus;
+import com.carvo.api.exception.ConflictException;
+import com.carvo.api.exception.NotFoundException;
+import com.carvo.api.repository.BookingRepository;
+import com.carvo.api.repository.BranchRepository;
+import com.carvo.api.repository.PaymentRepository;
+import com.carvo.api.repository.UserRepository;
+import com.carvo.api.repository.VehicleRepository;
+import java.util.List;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AdminService {
+
+    private final UserRepository userRepository;
+    private final BranchRepository branchRepository;
+    private final VehicleRepository vehicleRepository;
+    private final BookingRepository bookingRepository;
+    private final PaymentRepository paymentRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AdminService(
+            UserRepository userRepository,
+            BranchRepository branchRepository,
+            VehicleRepository vehicleRepository,
+            BookingRepository bookingRepository,
+            PaymentRepository paymentRepository,
+            PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.branchRepository = branchRepository;
+        this.vehicleRepository = vehicleRepository;
+        this.bookingRepository = bookingRepository;
+        this.paymentRepository = paymentRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public UserSummary createStaff(CreateStaffRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new ConflictException("An account with this email already exists.");
+        }
+        User user = new User();
+        user.setName(request.name());
+        user.setEmail(request.email());
+        user.setPhone(request.phone());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setRole(Role.valueOf(request.role()));
+        user.setStatus(UserStatus.ACTIVE);
+        if (request.branchId() != null) {
+            user.setBranch(findBranch(request.branchId()));
+        }
+        return UserSummary.from(userRepository.save(user));
+    }
+
+    public List<UserSummary> listStaff() {
+        List<User> staff = userRepository.findByRole(Role.STAFF);
+        List<User> admins = userRepository.findByRole(Role.ADMIN);
+        return java.util.stream.Stream.concat(staff.stream(), admins.stream())
+                .map(UserSummary::from)
+                .toList();
+    }
+
+    public UserSummary updateStaff(Long id, UpdateStaffRequest request) {
+        User user = findStaffOrAdmin(id);
+        user.setName(request.name());
+        user.setPhone(request.phone());
+        user.setBranch(request.branchId() != null ? findBranch(request.branchId()) : null);
+        return UserSummary.from(userRepository.save(user));
+    }
+
+    public void deleteStaff(Long id) {
+        User user = findStaffOrAdmin(id);
+        userRepository.delete(user);
+    }
+
+    public DashboardResponse dashboard() {
+        long totalVehicles = vehicleRepository.count();
+        long availableVehicles = vehicleRepository.findAll().stream()
+                .filter(v -> v.getStatus() == VehicleStatus.AVAILABLE)
+                .count();
+        long activeBookings = bookingRepository.countByStatusIn(
+                List.of(BookingStatus.CONFIRMED, BookingStatus.ONGOING));
+        long pendingBookings = bookingRepository.countByStatusIn(List.of(BookingStatus.PENDING));
+        double utilizationRate = totalVehicles == 0
+                ? 0.0
+                : (double) (totalVehicles - availableVehicles) / totalVehicles;
+        return new DashboardResponse(
+                totalVehicles,
+                availableVehicles,
+                activeBookings,
+                pendingBookings,
+                utilizationRate,
+                paymentRepository.sumCompletedRevenue());
+    }
+
+    public BranchResponse createBranch(BranchRequest request) {
+        Branch branch = new Branch();
+        branch.setName(request.name());
+        branch.setAddress(request.address());
+        branch.setPhone(request.phone());
+        return BranchResponse.from(branchRepository.save(branch));
+    }
+
+    public List<BranchResponse> listBranches() {
+        return branchRepository.findAll().stream().map(BranchResponse::from).toList();
+    }
+
+    private Branch findBranch(Long id) {
+        return branchRepository.findById(id).orElseThrow(() -> new NotFoundException("Branch not found"));
+    }
+
+    private User findStaffOrAdmin(Long id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() == Role.CUSTOMER) {
+            throw new NotFoundException("User not found");
+        }
+        return user;
+    }
+}
