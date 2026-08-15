@@ -36,7 +36,6 @@ services:
     environment:
       - DATABASE_URL_INTERNAL
       - DATABASE_URL
-      - JWT_SECRET=${JWT_SECRET:-dev-only-secret-change-me-dev-only-secret-change-me}
       - ADMIN_SEED_EMAIL=${ADMIN_SEED_EMAIL:-admin@carvo.local}
       - ADMIN_SEED_PASSWORD=${ADMIN_SEED_PASSWORD:-changeme123}
       - PORT=8080

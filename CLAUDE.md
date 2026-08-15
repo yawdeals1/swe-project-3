@@ -11,7 +11,7 @@ Carvo is a three-tier vehicle rental management system built for CPEN 208 (Softw
 | Frontend | Next.js (App Router), TypeScript, Tailwind |
 | Backend | Java Spring Boot, layered Controller → Service → Repository |
 | Database | PostgreSQL, schema managed by Flyway |
-| Auth | JWT bearer tokens, BCrypt password hashing |
+| Auth | Deploro Auth-as-a-Service (email/password), roles kept in `app_user` |
 | Deployment | Deploro VPS compute (see "Deployment" below) |
 
 ## Repo layout
@@ -40,7 +40,7 @@ Do not use emoji anywhere — not in UI copy, not in code, not in commit message
 - **Layered architecture is mandatory** (NFR-7): Controller handles HTTP only, Service holds business logic, Repository is Spring Data JPA only. Don't collapse layers for convenience.
 - **DTOs at the controller boundary.** Never serialize JPA entities directly in a response or bind them directly from a request body.
 - **All schema changes go through Flyway migrations** in `backend/src/main/resources/db/migration/`. Never hand-edit the database or rely on Hibernate `ddl-auto` to shape schema.
-- **Auth:** BCrypt-hashed passwords, JWTs with a configurable expiry (NFR-2). Role checks belong in Spring Security config / method security, not ad hoc `if` checks scattered through controllers.
+- **Auth:** register/login proxy to Deploro's Auth-as-a-Service (`DeploroAuthClient`) instead of hashing passwords or minting tokens locally (NFR-2) — Deploro issues the opaque bearer token, and `DeploroAuthFilter` validates it against Deploro's session endpoint on every protected request. Deploro has no concept of Carvo's roles; `app_user.deploro_account_id` links a Deploro identity to its local row, and role checks still belong in Spring Security config / method security, not ad hoc `if` checks scattered through controllers. Every new identity (self-registered or Admin-created) is gated behind a Deploro-emailed confirmation link before first login — there is no bypass, including for seeded/admin-created accounts.
 - **Validation:** every input is validated both client-side and server-side (FR-5.2); server errors return a consistent, human-readable shape (FR-5.3) via a global exception handler — never let a stack trace leak to the client, and never let bad input crash the server (NFR-5).
 - **Double-booking prevention (FR-3.4):** enforce this at the database layer with a Postgres `EXCLUDE` constraint (`btree_gist`, on `vehicle_id` + the booking's date range), not only an application-level check before insert. This is called out explicitly in the PRD's risk table (Section 14) — a UI-only check is not sufficient.
 
@@ -69,7 +69,7 @@ cd frontend && BACKEND_INTERNAL_URL=http://localhost:8080 npm run dev   # fronte
 
 Before considering a backend change done: `mvn test` passes. Before considering a frontend change done: `npm run lint` and `npm run build` pass, and the flow was actually clicked through in a browser — passing type checks is not the same as the feature working.
 
-The first Admin account is seeded automatically on backend startup by `AdminSeeder` (`backend/src/main/java/com/carvo/api/config/`) — FR-1.7 blocks Staff/Admin creation any other way, so this is the deliberate bootstrap. Set `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`; without them it defaults to `admin@carvo.local` / a well-known dev-only password and logs a warning — never leave that default in a real deployment.
+The first Admin account is seeded automatically on backend startup by `AdminSeeder` (`backend/src/main/java/com/carvo/api/config/`) — FR-1.7 blocks Staff/Admin creation any other way, so this is the deliberate bootstrap. Set `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`; without them it defaults to a well-known dev-only password and an undeliverable `admin@carvo.local` address, and logs a warning — never leave that default in a real deployment. **`ADMIN_SEED_EMAIL` must be a real inbox you control**, not just non-default: Deploro Auth-as-a-Service emails a confirmation link to every new identity, including this seeded one, and there is no way to sign in before it's clicked.
 
 ## Deployment
 

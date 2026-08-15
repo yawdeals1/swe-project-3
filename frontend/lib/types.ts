@@ -11,8 +11,9 @@ export interface UserSummary {
 }
 
 export interface AuthResponse {
-  token: string;
-  user: UserSummary;
+  status: "AUTHENTICATED" | "PENDING_VERIFICATION";
+  token: string | null;
+  user: UserSummary | null;
 }
 
 export interface VehicleResponse {

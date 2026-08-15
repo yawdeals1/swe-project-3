@@ -5,14 +5,19 @@ import { Banner } from "@/components/Banner";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; pending?: string; verified?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, pending, verified } = await searchParams;
+  const success = verified
+    ? "Email confirmed — sign in below."
+    : pending
+      ? "Check your email to confirm your account, then sign in below."
+      : undefined;
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
-      <Banner error={error} />
+      <Banner error={error} success={success} />
       <form action={loginAction} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           Email
