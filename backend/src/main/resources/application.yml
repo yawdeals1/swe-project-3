@@ -17,9 +17,6 @@ server:
   port: ${PORT:8080}
 
 carvo:
-  jwt:
-    secret: ${JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
-    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   deploro:
     auth-base-url: ${DEPLORO_AUTH_BASE_URL:https://gallium-worker.calebmensah.workers.dev}
   admin:

@@ -55,7 +55,7 @@ Platform operator (the student/developer, acting as system admin for this projec
 ## 5. Scope
 
 **In scope**
-- Customer self-registration and role-based authentication (JWT)
+- Customer self-registration and role-based authentication (bearer token via Deploro Auth-as-a-Service)
 - Vehicle search, booking, payment (simulated), and review flow
 - Staff booking confirmation and vehicle handover/return workflow
 - Admin fleet, staff, and booking oversight, plus a summary dashboard
@@ -74,7 +74,7 @@ Platform operator (the student/developer, acting as system admin for this projec
 - **Backend:** Java Spring Boot, RESTful JSON API, layered architecture (Controller → Service → Repository)
 - **Database:** PostgreSQL — local during development, cloud-hosted for deployment
 - **Deployment:** Any HTTPS-reachable cloud host (e.g., Render, Railway, or a university server)
-- **Auth:** JWT bearer tokens, BCrypt-hashed passwords
+- **Auth:** Deploro Auth-as-a-Service (email/password, opaque bearer session token); Carvo's own roles (Customer/Staff/Admin) are kept in `app_user`, linked to a Deploro identity by account id — Deploro has no concept of app-specific roles
 - **Source control:** GitHub, full version history required
 
 ---
@@ -110,7 +110,7 @@ NFRs are foundational rather than phased, but two are effectively MVP gates: **N
 |---|---|---|---|
 | FR-1.1 | Allow a new user to self-register only as a Customer (name, email, phone, password) | High | MVP |
 | FR-1.2 | Verify the email address is unique before completing registration | High | MVP |
-| FR-1.3 | Allow login via email/password; issue a JWT session token on success | High | MVP |
+| FR-1.3 | Allow login via email/password; issue a bearer session token on success | High | MVP |
 | FR-1.4 | Allow logout, invalidating the active session token | Medium | V1 |
 | FR-1.5 | Allow password reset via a verified email link | Medium | V1 |
 | FR-1.6 | Restrict endpoint/page access based on authenticated user's role | High | MVP |
@@ -169,7 +169,7 @@ NFRs are foundational rather than phased, but two are effectively MVP gates: **N
 | ID | Category | Requirement | MVP-critical? |
 |---|---|---|---|
 | NFR-1 | Performance | 95% of API requests complete within 2s under up to 100 concurrent users | Validate post-MVP |
-| NFR-2 | Security | Passwords hashed (BCrypt), HTTPS only, JWTs expire after a configurable period | Yes |
+| NFR-2 | Security | Passwords never handled or stored by Carvo directly — hashed and verified by Deploro Auth-as-a-Service; HTTPS only; bearer session tokens expire after Deploro's fixed 7-day window | Yes |
 | NFR-3 | Usability | Usable by a first-time user without training, consistent navigation | Validate post-MVP |
 | NFR-4 | Responsiveness | Renders correctly from 360px (mobile) to 1920px (desktop) | Validate post-MVP |
 | NFR-5 | Reliability | Handles invalid/unexpected input without crashing; correct HTTP status codes | Yes |
@@ -198,7 +198,7 @@ Frontend and backend communicate exclusively via a versioned REST JSON API (`/ap
 Backend ↔ PostgreSQL via JDBC / Spring Data JPA.
 
 ### 10.3 Communication Interfaces
-All client-server traffic over HTTPS, JSON payloads. Authenticated requests carry a Bearer JWT in the Authorization header.
+All client-server traffic over HTTPS, JSON payloads. Authenticated requests carry a Bearer session token (issued by Deploro Auth-as-a-Service) in the Authorization header.
 
 ---
 
