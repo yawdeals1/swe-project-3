@@ -46,14 +46,13 @@ export async function loginAction(formData: FormData): Promise<void> {
 export async function registerAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "");
   const email = String(formData.get("email") ?? "");
-  const phone = String(formData.get("phone") ?? "");
   const password = String(formData.get("password") ?? "");
 
   let auth: AuthResponse;
   try {
     auth = await backendFetch<AuthResponse>("/auth/register", {
       method: "POST",
-      body: { name, email, phone, password },
+      body: { name, email, password },
     });
   } catch (e) {
     const message = e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
