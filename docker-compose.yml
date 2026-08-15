@@ -21,6 +21,14 @@
 # 8080 here collides with whatever else is already running there ("port is already allocated").
 # For direct Postman/curl access during local dev, run `mvn spring-boot:run` outside Docker
 # instead (binds :8080 on your own machine, no conflict).
+#
+# "web" publishes host port 39217 (mapped to its own internal :3000) instead of the default
+# 3000 — every project on this shared VPS defaults to 3000 for its frontend, so that port is
+# essentially guaranteed to already be taken by someone else's container. Deploro's VPS agent
+# detects whatever port actually gets published and reverse-proxies {slug}.deploro.app to it,
+# so the literal number here doesn't need to be "3000" or anything else specific — it only needs
+# to not collide. If a future deploy ever fails again with "port is already allocated" on this
+# number, that means something else grabbed it in the meantime; just pick a different one.
 services:
   backend:
     build:
@@ -43,4 +51,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "39217:3000"
