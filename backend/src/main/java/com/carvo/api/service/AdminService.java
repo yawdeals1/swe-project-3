@@ -19,8 +19,8 @@ import com.carvo.api.repository.BranchRepository;
 import com.carvo.api.repository.PaymentRepository;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.repository.VehicleRepository;
+import com.carvo.api.security.DeploroAuthClient;
 import java.util.List;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,7 +31,7 @@ public class AdminService {
     private final VehicleRepository vehicleRepository;
     private final BookingRepository bookingRepository;
     private final PaymentRepository paymentRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final DeploroAuthClient deploroAuthClient;
 
     public AdminService(
             UserRepository userRepository,
@@ -39,13 +39,13 @@ public class AdminService {
             VehicleRepository vehicleRepository,
             BookingRepository bookingRepository,
             PaymentRepository paymentRepository,
-            PasswordEncoder passwordEncoder) {
+            DeploroAuthClient deploroAuthClient) {
         this.userRepository = userRepository;
         this.branchRepository = branchRepository;
         this.vehicleRepository = vehicleRepository;
         this.bookingRepository = bookingRepository;
         this.paymentRepository = paymentRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.deploroAuthClient = deploroAuthClient;
     }
 
     public UserSummary createStaff(CreateStaffRequest request) {
@@ -56,13 +56,17 @@ public class AdminService {
         user.setName(request.name());
         user.setEmail(request.email());
         user.setPhone(request.phone());
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole(Role.valueOf(request.role()));
         user.setStatus(UserStatus.ACTIVE);
         if (request.branchId() != null) {
             user.setBranch(findBranch(request.branchId()));
         }
-        return UserSummary.from(userRepository.save(user));
+        UserSummary summary = UserSummary.from(userRepository.save(user));
+        // Staff/Admin sign in with the password given here (not OTP) — the confirmation email
+        // Deploro sends must be clicked once before their first login (FR-1.7 bootstrap; same gate
+        // AdminSeeder's seed Admin goes through).
+        deploroAuthClient.signup(request.email(), request.password(), request.name());
+        return summary;
     }
 
     public List<UserSummary> listStaff() {

@@ -29,6 +29,9 @@ public class User {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    @Column(name = "deploro_account_id", unique = true)
+    private String deploroAccountId;
+
     private String phone;
 
     @Enumerated(EnumType.STRING)
@@ -69,6 +72,14 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getDeploroAccountId() {
+        return deploroAccountId;
+    }
+
+    public void setDeploroAccountId(String deploroAccountId) {
+        this.deploroAccountId = deploroAccountId;
     }
 
     public String getPhone() {

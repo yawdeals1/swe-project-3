@@ -39,8 +39,10 @@ export async function loginAction(formData: FormData): Promise<void> {
     redirect(`/login?error=${encodeURIComponent(message)}`);
   }
 
-  await setSessionCookie(auth.token);
-  redirect(roleHome(auth.user.role));
+  // login always returns AUTHENTICATED (or throws above) — the backend never issues
+  // PENDING_VERIFICATION here, only from register().
+  await setSessionCookie(auth.token!);
+  redirect(roleHome(auth.user!.role));
 }
 
 export async function registerAction(formData: FormData): Promise<void> {
@@ -59,8 +61,12 @@ export async function registerAction(formData: FormData): Promise<void> {
     redirect(`/register?error=${encodeURIComponent(message)}`);
   }
 
-  await setSessionCookie(auth.token);
-  redirect(roleHome(auth.user.role));
+  if (auth.status === "PENDING_VERIFICATION") {
+    redirect("/login?pending=1");
+  }
+
+  await setSessionCookie(auth.token!);
+  redirect(roleHome(auth.user!.role));
 }
 
 export async function logoutAction(): Promise<void> {
