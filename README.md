@@ -8,26 +8,28 @@ Full requirements: [`docs/Carvo_PRD.md`](docs/Carvo_PRD.md). Agent/contributor c
 
 - **Frontend:** Next.js (App Router), TypeScript, Tailwind — `frontend/`
 - **Backend:** Java Spring Boot, layered Controller → Service → Repository — `backend/`
-- **Database:** PostgreSQL, schema managed by Flyway
+- **Database:** PostgreSQL (Deploro-hosted VPS Postgres — see `CLAUDE.md`), schema managed by Flyway
 - **Auth:** JWT bearer tokens, BCrypt password hashing
 - **Deployment:** Deploro VPS compute hosting (see `CLAUDE.md`)
 
 ## Local development
 
-Requires Docker, Java 21, Node 22+.
+Requires Java 21, Node 22+, and a reachable Postgres instance (the project's Deploro-hosted one, or your own).
 
 ```bash
-docker compose up -d postgres      # local Postgres on :5432
+export DATABASE_URL_INTERNAL="postgres://user:pass@host:port/db?sslmode=require"
 cd backend && ./mvnw spring-boot:run   # API on :8080
-cd frontend && npm run dev             # web app on :3000
+cd frontend && BACKEND_INTERNAL_URL=http://localhost:8080 npm run dev   # web app on :3000
 ```
 
-Or run the full stack the same way it deploys:
+Or with Docker (requires the same `DATABASE_URL_INTERNAL` exported first, since there is no bundled Postgres container in `docker-compose.yml` — see the comment at its top for why):
 
 ```bash
 docker compose up --build
 ```
 
+The first Admin account is seeded automatically on backend startup — see `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` in `CLAUDE.md`.
+
 ## Status
 
-Scaffolding stage — see the build plan for the phased task list (data model, MVP backend/frontend, branding pass, deployment, V1, V2).
+MVP implemented and deployed — see the build plan for the phased task list (V1/V2 remain).

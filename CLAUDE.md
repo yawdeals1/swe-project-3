@@ -57,21 +57,29 @@ The PRD phases requirements into MVP / V1 / V2 (Section 7) strictly by original 
 
 ## Local development
 
+There is no bundled Postgres container — Carvo's database is Deploro's dedicated VPS Postgres (see Deployment below), not a service in `docker-compose.yml`. Point at it (or any Postgres you run yourself) via `DATABASE_URL_INTERNAL`:
+
 ```
-docker compose up -d postgres      # local Postgres
-cd backend && mvn spring-boot:run  # backend on its configured port
-cd frontend && npm run dev         # frontend dev server
+export DATABASE_URL_INTERNAL="postgres://user:pass@host:port/db?sslmode=require"
+cd backend && mvn spring-boot:run                              # backend on :8080
+cd frontend && BACKEND_INTERNAL_URL=http://localhost:8080 npm run dev   # frontend on :3000
 ```
 
+`DatabaseUrlEnvironmentPostProcessor` (`backend/src/main/java/com/carvo/api/config/`) translates that `postgres://` connection string into the `spring.datasource.*` properties Hikari/Flyway need — Deploro's own connection strings are never in JDBC form, so don't bypass this by hand-rolling a `jdbc:postgresql://` URL elsewhere.
+
 Before considering a backend change done: `mvn test` passes. Before considering a frontend change done: `npm run lint` and `npm run build` pass, and the flow was actually clicked through in a browser — passing type checks is not the same as the feature working.
+
+The first Admin account is seeded automatically on backend startup by `AdminSeeder` (`backend/src/main/java/com/carvo/api/config/`) — FR-1.7 blocks Staff/Admin creation any other way, so this is the deliberate bootstrap. Set `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`; without them it defaults to `admin@carvo.local` / a well-known dev-only password and logs a warning — never leave that default in a real deployment.
 
 ## Deployment
 
 Carvo deploys via **Deploro VPS compute hosting**, not Cloudflare Workers/Pages. This is a deliberate choice, not a default: Spring Boot needs a real JDBC/TCP connection to Postgres and a long-running process, which Cloudflare Workers cannot provide. Concretely:
 
-- Database: `deploro vps database create` (a dedicated Postgres container with a real connection string), **not** `deploro db create` (that provisions a REST-only studio-API database with no connection string — wrong choice for Spring Data JPA).
+- Database: `deploro vps database create` (a dedicated Postgres container with a real connection string), **not** `deploro db create` (that provisions a REST-only studio-API database with no connection string — wrong choice for Spring Data JPA). This is a *separate* Postgres instance from anything in `docker-compose.yml` — the compose file has no `postgres` service, deliberately, because the VPS's shared port 5432 is already in use by the platform and duplicating it there breaks `docker compose up` on deploy (this happened once — don't reintroduce a `postgres:` service in the compose file).
 - App: `deploro vps deploy`, which builds and runs `docker-compose.yml` at the repo root. The Next.js service is deliberately named `web` (not `frontend`) and the Spring Boot service `backend` — Deploro's port auto-detection prefers a service named `app`/`web`/`server`/`api`/`backend` (in that order) for the public `{slug}.deploro.app` route, so `web` wins and becomes the one public origin. The browser only ever talks to `web`; it proxies API calls server-side (Next.js Route Handlers) to `backend` over the internal docker network via `BACKEND_INTERNAL_URL`, so there's no CORS or cross-origin cookie/auth surface between the two.
-- Prefer `DATABASE_URL_INTERNAL` (private VPS network, no allowlist needed) over the public `DATABASE_URL` for the backend's own runtime connection; the public URL is for external tooling only.
+- Prefer `DATABASE_URL_INTERNAL` (private VPS network, no allowlist needed) over the public `DATABASE_URL` for the backend's own runtime connection; the public URL is for external tooling only. Deploro auto-injects both into the compute stack's `.env`; `docker-compose.yml`'s `backend` service passes them through with bare `- DATABASE_URL_INTERNAL` / `- DATABASE_URL` entries (present only when set, so the app can tell "unset" from "empty" and fall back correctly) rather than `KEY: ${VAR}` interpolation.
+- `deploro vps deploy` clones the linked GitHub repo; this CLI has no private-repo credential flag, so if clones start failing with a git auth error, check whether repo access needs to be reconnected (dashboard-level GitHub App/deploy-key integration, not something this CLI exposes) rather than assuming the repo must be public. Also note: **git on Windows does not preserve the executable bit**, so `backend/mvnw` can silently lose it on a Windows commit and break the Docker build (`Permission denied`, exit 126) on Deploro's Linux build host; the backend `Dockerfile` defensively `chmod +x`'s it, but if this ever regresses, `git update-index --chmod=+x backend/mvnw` fixes the index directly.
+- The repo has branch protection requiring PRs into `main` — direct pushes to `main` will be rejected (`GH013`). Branch, push, open a PR, and merge it (or ask the user to) before expecting `deploro vps deploy` to pick up new commits.
 
 If you're unfamiliar with the Deploro CLI, load the `deploro` skill before running any `deploro vps *` commands — the distinction between VPS compute and the Workers-only `deploy`/`db` commands is easy to get backwards and matters here.
 

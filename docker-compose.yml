@@ -4,37 +4,27 @@
 # — not the raw API — is what the public URL routes to, keeping this a single-origin app: the
 # browser only ever talks to "web", which proxies API calls server-side to "backend" over the
 # internal docker network. That avoids CORS and cross-origin cookie/auth issues entirely.
+#
+# There is deliberately no "postgres" service here. This project's database is Deploro's own
+# dedicated VPS Postgres (`deploro vps database create`), not a container in this stack — the
+# VPS's shared port 5432 is already in use, and duplicating it here breaks `docker compose up`
+# on deploy. Deploro injects DATABASE_URL_INTERNAL (and DATABASE_URL) into this stack's .env
+# automatically once that database exists; the bare `- DATABASE_URL_INTERNAL` entries below pass
+# those straight through only when present, so the backend's own EnvironmentPostProcessor can
+# translate them from Deploro's postgres://user:pass@host/db form into a JDBC url. For local dev
+# without a deployed VPS database, export DATABASE_URL_INTERNAL yourself before `docker compose
+# up` (see README) — pointing at the same Deploro-hosted Postgres, or any Postgres you run.
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: carvo
-      POSTGRES_USER: carvo
-      POSTGRES_PASSWORD: carvo
-    ports:
-      - "5432:5432"
-    volumes:
-      - carvo-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U carvo -d carvo"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   backend:
     build:
       context: ./backend
     environment:
-      DATABASE_URL: jdbc:postgresql://postgres:5432/carvo
-      DATABASE_USER: carvo
-      DATABASE_PASSWORD: carvo
-      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-dev-only-secret-change-me}
-      ADMIN_SEED_EMAIL: ${ADMIN_SEED_EMAIL:-admin@carvo.local}
-      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-changeme123}
-      PORT: 8080
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - DATABASE_URL_INTERNAL
+      - DATABASE_URL
+      - JWT_SECRET=${JWT_SECRET:-dev-only-secret-change-me-dev-only-secret-change-me}
+      - ADMIN_SEED_EMAIL=${ADMIN_SEED_EMAIL:-admin@carvo.local}
+      - ADMIN_SEED_PASSWORD=${ADMIN_SEED_PASSWORD:-changeme123}
+      - PORT=8080
     ports:
       - "8080:8080" # published for local dev convenience (Postman/curl); not required in prod
 
@@ -43,12 +33,9 @@ services:
       context: ./frontend
     environment:
       # server-side only (Next.js Route Handlers proxy through this) — never exposed to the browser
-      BACKEND_INTERNAL_URL: http://backend:8080
-      PORT: 3000
+      - BACKEND_INTERNAL_URL=http://backend:8080
+      - PORT=3000
     depends_on:
       - backend
     ports:
       - "3000:3000"
-
-volumes:
-  carvo-postgres-data:
