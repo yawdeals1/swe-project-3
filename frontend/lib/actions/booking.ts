@@ -73,6 +73,27 @@ export async function rejectBookingAction(formData: FormData): Promise<void> {
   redirect("/staff?success=Booking%20rejected");
 }
 
+export async function cancelBookingAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const bookingId = Number(formData.get("bookingId"));
+
+  try {
+    await backendFetch<BookingResponse>(`/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      token: session.token,
+    });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Could not cancel this booking.";
+    redirect(`/dashboard?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard?success=Booking%20cancelled");
+}
+
 export async function payBookingAction(formData: FormData): Promise<void> {
   const session = await getSession();
   if (!session) {
