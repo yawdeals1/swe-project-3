@@ -45,6 +45,21 @@ public class AdminController {
         return adminService.listStaff();
     }
 
+    @GetMapping("/customers")
+    public List<UserSummary> listCustomers() {
+        return adminService.listCustomers();
+    }
+
+    @PutMapping("/customers/{id}/suspend")
+    public UserSummary suspendCustomer(@PathVariable Long id) {
+        return adminService.suspendCustomer(id);
+    }
+
+    @PutMapping("/customers/{id}/delete")
+    public UserSummary deleteCustomer(@PathVariable Long id) {
+        return adminService.deleteCustomer(id);
+    }
+
     @PutMapping("/staff/{id}")
     public UserSummary updateStaff(@PathVariable Long id, @Valid @RequestBody UpdateStaffRequest request) {
         return adminService.updateStaff(id, request);

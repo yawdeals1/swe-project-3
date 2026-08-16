@@ -53,6 +53,42 @@ export async function deleteStaffAction(formData: FormData): Promise<void> {
   redirect("/admin/staff?success=Account%20removed");
 }
 
+export async function suspendCustomerAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const id = Number(formData.get("id"));
+
+  try {
+    await backendFetch(`/admin/customers/${id}/suspend`, { method: "PUT", token: session.token });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Could not suspend this customer.";
+    redirect(`/admin/customers?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/admin/customers");
+  redirect("/admin/customers?success=Customer%20suspended");
+}
+
+export async function deleteCustomerAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const id = Number(formData.get("id"));
+
+  try {
+    await backendFetch(`/admin/customers/${id}/delete`, { method: "PUT", token: session.token });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Could not deactivate this customer.";
+    redirect(`/admin/customers?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/admin/customers");
+  redirect("/admin/customers?success=Customer%20deactivated");
+}
+
 export async function createBranchAction(formData: FormData): Promise<void> {
   const session = await getSession();
   if (!session) {

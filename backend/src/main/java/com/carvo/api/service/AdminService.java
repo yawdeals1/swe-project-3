@@ -1,5 +1,9 @@
 package com.carvo.api.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.carvo.api.dto.admin.BranchRequest;
 import com.carvo.api.dto.admin.BranchResponse;
 import com.carvo.api.dto.admin.CreateStaffRequest;
@@ -20,8 +24,6 @@ import com.carvo.api.repository.PaymentRepository;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.repository.VehicleRepository;
 import com.carvo.api.security.DeploroAuthClient;
-import java.util.List;
-import org.springframework.stereotype.Service;
 
 @Service
 public class AdminService {
@@ -77,6 +79,24 @@ public class AdminService {
                 .toList();
     }
 
+    public List<UserSummary> listCustomers() {
+        return userRepository.findByRole(Role.CUSTOMER).stream()
+                .map(UserSummary::from)
+                .toList();
+    }
+
+    public UserSummary suspendCustomer(Long id) {
+        User user = findCustomer(id);
+        user.setStatus(UserStatus.SUSPENDED);
+        return UserSummary.from(userRepository.save(user));
+    }
+
+    public UserSummary deleteCustomer(Long id) {
+        User user = findCustomer(id);
+        user.setStatus(UserStatus.DELETED);
+        return UserSummary.from(userRepository.save(user));
+    }
+
     public UserSummary updateStaff(Long id, UpdateStaffRequest request) {
         User user = findStaffOrAdmin(id);
         user.setName(request.name());
@@ -130,6 +150,14 @@ public class AdminService {
         User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
         if (user.getRole() == Role.CUSTOMER) {
             throw new NotFoundException("User not found");
+        }
+        return user;
+    }
+
+    private User findCustomer(Long id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() != Role.CUSTOMER) {
+            throw new NotFoundException("Customer not found");
         }
         return user;
     }
