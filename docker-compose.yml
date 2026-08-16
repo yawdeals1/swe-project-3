@@ -36,8 +36,18 @@ services:
     environment:
       - DATABASE_URL_INTERNAL
       - DATABASE_URL
+      # No compose-level default for ADMIN_SEED_PASSWORD (unlike ADMIN_SEED_EMAIL above, which
+      # just mirrors the app's own default): defaulting it here to "changeme123" would feed a
+      # non-blank value into the container even when nobody configured it, silently masking
+      # AdminSeeder's own "no ADMIN_SEED_PASSWORD set" warning in every real deployment. Passing
+      # it through bare (present only when set, same pattern as DATABASE_URL_INTERNAL below) lets
+      # that warning actually reach the deploy logs when it's genuinely unset.
       - ADMIN_SEED_EMAIL=${ADMIN_SEED_EMAIL:-admin@carvo.local}
-      - ADMIN_SEED_PASSWORD=${ADMIN_SEED_PASSWORD:-changeme123}
+      - ADMIN_SEED_PASSWORD
+      # The API's CORS allowlist — set to https://{slug}.deploro.app once the project has a
+      # deployed public URL, so the credentialed-CORS surface isn't left open by default even
+      # though "backend" has no published port. Falls back to local dev's "web" origin when unset.
+      - CARVO_WEB_ALLOWED_ORIGINS
       - PORT=8080
 
   web:

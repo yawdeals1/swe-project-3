@@ -1,7 +1,9 @@
 package com.carvo.api.config;
 
 import com.carvo.api.security.DeploroAuthFilter;
+import java.util.Arrays;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -22,8 +24,19 @@ public class SecurityConfig {
 
     private final DeploroAuthFilter deploroAuthFilter;
 
-    public SecurityConfig(DeploroAuthFilter deploroAuthFilter) {
+    // The backend has no public route of its own in production (the "web" service is the sole
+    // public origin, proxying to "backend" server-side over the internal docker network — see
+    // docker-compose.yml) — but CORS must not rely on that as its only origin control, since a
+    // local `mvn spring-boot:run` or a future deploy change could expose this port directly.
+    // Comma-separated list so both local dev ports and the deployed {slug}.deploro.app origin
+    // can be allowed at once.
+    private final List<String> allowedOrigins;
+
+    public SecurityConfig(
+            DeploroAuthFilter deploroAuthFilter,
+            @Value("${carvo.web.allowed-origins:http://localhost:3000}") String allowedOrigins) {
         this.deploroAuthFilter = deploroAuthFilter;
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split(",")).map(String::trim).toList();
     }
 
     @Bean
@@ -49,7 +62,7 @@ public class SecurityConfig {
 
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

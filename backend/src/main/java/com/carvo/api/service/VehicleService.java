@@ -17,7 +17,6 @@ import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -115,27 +114,29 @@ public class VehicleService {
         }
     }
 
-    private static final Set<String> ALLOWED_IMAGE_TYPES =
-            Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
-
     @Transactional
     public VehicleResponse addImage(Long vehicleId, MultipartFile file) {
         Vehicle vehicle = findEntity(vehicleId);
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("No image file was provided.");
         }
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read the uploaded image.", e);
+        }
+        // The client-declared Content-Type header is attacker-controlled (any file can claim to
+        // be "image/png"); the stored/served type must instead be derived from the file's own
+        // magic bytes, not trusted from the request.
+        String contentType = sniffImageContentType(bytes);
+        if (contentType == null) {
             throw new BadRequestException("Photos must be JPEG, PNG, WEBP, or GIF.");
         }
         VehicleImage image = new VehicleImage();
         image.setVehicle(vehicle);
         image.setContentType(contentType);
-        try {
-            image.setImageData(file.getBytes());
-        } catch (IOException e) {
-            throw new UncheckedIOException("Could not read the uploaded image.", e);
-        }
+        image.setImageData(bytes);
         vehicleImageRepository.save(image);
         return toResponse(vehicle);
     }
@@ -155,6 +156,40 @@ public class VehicleService {
     public VehicleImage getImage(Long imageId) {
         return vehicleImageRepository.findById(imageId)
                 .orElseThrow(() -> new NotFoundException("Image not found"));
+    }
+
+    /** Identifies an image's real type from its magic bytes rather than trusting the client's
+     *  declared Content-Type header. Returns {@code null} if the bytes don't match a supported
+     *  signature. JDK's own {@code URLConnection.guessContentTypeFromStream} isn't relied on here
+     *  since its WEBP detection is inconsistent across versions. */
+    private static String sniffImageContentType(byte[] bytes) {
+        if (startsWith(bytes, 0xFF, 0xD8, 0xFF)) {
+            return "image/jpeg";
+        }
+        if (startsWith(bytes, 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)) {
+            return "image/png";
+        }
+        if (startsWith(bytes, 'G', 'I', 'F', '8')) {
+            return "image/gif";
+        }
+        if (bytes.length >= 12
+                && startsWith(bytes, 'R', 'I', 'F', 'F')
+                && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') {
+            return "image/webp";
+        }
+        return null;
+    }
+
+    private static boolean startsWith(byte[] bytes, int... signature) {
+        if (bytes.length < signature.length) {
+            return false;
+        }
+        for (int i = 0; i < signature.length; i++) {
+            if ((bytes[i] & 0xFF) != (signature[i] & 0xFF)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Vehicle findEntity(Long id) {

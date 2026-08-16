@@ -35,7 +35,9 @@ public class PaymentController {
     }
 
     @GetMapping("/booking/{bookingId}")
-    public PaymentResponse getByBooking(@PathVariable Long bookingId) {
-        return paymentService.getByBooking(bookingId);
+    public PaymentResponse getByBooking(
+            @AuthenticationPrincipal CarvoUserPrincipal principal,
+            @PathVariable Long bookingId) {
+        return paymentService.getByBooking(principal, bookingId);
     }
 }

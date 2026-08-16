@@ -8,6 +8,7 @@ import com.carvo.api.entity.User;
 import com.carvo.api.entity.Vehicle;
 import com.carvo.api.entity.enums.BookingStatus;
 import com.carvo.api.entity.enums.CheckType;
+import com.carvo.api.entity.enums.Role;
 import com.carvo.api.entity.enums.VehicleStatus;
 import com.carvo.api.exception.BadRequestException;
 import com.carvo.api.exception.ConflictException;
@@ -15,8 +16,10 @@ import com.carvo.api.exception.NotFoundException;
 import com.carvo.api.repository.CheckRecordRepository;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.repository.VehicleRepository;
+import com.carvo.api.security.CarvoUserPrincipal;
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,7 +83,12 @@ public class CheckRecordService {
         return CheckRecordResponse.from(saved);
     }
 
-    public List<CheckRecordResponse> findByBooking(Long bookingId) {
+    public List<CheckRecordResponse> findByBooking(CarvoUserPrincipal principal, Long bookingId) {
+        Booking booking = bookingService.findEntity(bookingId);
+        boolean isOwner = booking.getCustomer().getId().equals(principal.getId());
+        if (!isOwner && principal.getUser().getRole() == Role.CUSTOMER) {
+            throw new AccessDeniedException("You do not have permission to view these records.");
+        }
         return checkRecordRepository.findByBookingId(bookingId).stream()
                 .map(CheckRecordResponse::from)
                 .toList();
