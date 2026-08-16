@@ -87,6 +87,9 @@ public class AdminService {
 
     public UserSummary suspendCustomer(Long id) {
         User user = findCustomer(id);
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new ConflictException("This customer account has already been deleted.");
+        }
         user.setStatus(UserStatus.SUSPENDED);
         return UserSummary.from(userRepository.save(user));
     }

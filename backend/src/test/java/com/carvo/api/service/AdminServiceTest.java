@@ -1,13 +1,17 @@
 package com.carvo.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carvo.api.dto.common.UserSummary;
 import com.carvo.api.entity.User;
 import com.carvo.api.entity.enums.Role;
 import com.carvo.api.entity.enums.UserStatus;
+import com.carvo.api.exception.ConflictException;
 import com.carvo.api.repository.BookingRepository;
 import com.carvo.api.repository.BranchRepository;
 import com.carvo.api.repository.PaymentRepository;
@@ -88,6 +92,22 @@ class AdminServiceTest {
 
         assertThat(summary.status()).isEqualTo("DELETED");
         assertThat(customer.getStatus()).isEqualTo(UserStatus.DELETED);
+    }
+
+    @Test
+    void suspendCustomer_alreadyDeleted_throwsConflictAndDoesNotResurrect() {
+        User customer = new User();
+        setId(customer, 13L);
+        customer.setName("Kwame");
+        customer.setRole(Role.CUSTOMER);
+        customer.setStatus(UserStatus.DELETED);
+
+        when(userRepository.findById(13L)).thenReturn(Optional.of(customer));
+
+        assertThatThrownBy(() -> adminService.suspendCustomer(13L)).isInstanceOf(ConflictException.class);
+
+        assertThat(customer.getStatus()).isEqualTo(UserStatus.DELETED);
+        verify(userRepository, never()).save(any());
     }
 
     private void setId(Object target, Long id) {
