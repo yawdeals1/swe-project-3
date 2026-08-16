@@ -2,6 +2,7 @@ package com.carvo.api.controller;
 
 import com.carvo.api.dto.vehicle.VehicleRequest;
 import com.carvo.api.dto.vehicle.VehicleResponse;
+import com.carvo.api.dto.vehicle.VehicleStatusUpdateRequest;
 import com.carvo.api.service.VehicleService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -59,5 +61,11 @@ public class VehicleController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         vehicleService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public VehicleResponse updateStatus(@PathVariable Long id, @Valid @RequestBody VehicleStatusUpdateRequest request) {
+        return vehicleService.updateStatus(id, request.status());
     }
 }
