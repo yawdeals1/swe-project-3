@@ -67,4 +67,21 @@ public class AuthService {
 
         return AuthResponse.authenticated(result.token(), UserSummary.from(user));
     }
+
+    /** No-op if there's no bearer token to invalidate — logout is idempotent either way. */
+    public void logout(String bearerToken) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            deploroAuthClient.logout(bearerToken.substring(7));
+        }
+    }
+
+    /** Always succeeds from the caller's point of view (FR-1.5) — Deploro's own endpoint is
+     *  anti-enumeration, so there's nothing more specific to tell the caller either way. */
+    public void requestPasswordReset(String email) {
+        deploroAuthClient.requestPasswordReset(email);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        deploroAuthClient.resetPassword(token, newPassword);
+    }
 }
