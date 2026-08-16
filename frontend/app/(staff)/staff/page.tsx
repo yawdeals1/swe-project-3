@@ -2,11 +2,14 @@ import Link from "next/link";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { confirmBookingAction, rejectBookingAction } from "@/lib/actions/booking";
+import { updateVehicleStatusAction } from "@/lib/actions/vehicle";
 import { Banner } from "@/components/Banner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CategoryIcon } from "@/components/Icon";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { BookingResponse, VehicleResponse } from "@/lib/types";
+
+const VEHICLE_STATUSES = ["AVAILABLE", "RENTED", "MAINTENANCE"];
 
 export default async function StaffHomePage({
   searchParams,
@@ -27,7 +30,15 @@ export default async function StaffHomePage({
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Staff dashboard</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Staff dashboard</h1>
+        <Link
+          href="/staff/customers"
+          className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          Look up a customer
+        </Link>
+      </div>
       <Banner error={error} success={success} />
 
       <section className="mb-10">
@@ -111,7 +122,29 @@ export default async function StaffHomePage({
                   {vehicle.make} {vehicle.model} &middot; {vehicle.plateNumber}
                 </p>
               </div>
-              <StatusBadge status={vehicle.status} />
+              <div className="flex items-center gap-3">
+                <StatusBadge status={vehicle.status} />
+                <form action={updateVehicleStatusAction} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={vehicle.id} />
+                  <select
+                    name="status"
+                    defaultValue={vehicle.status}
+                    className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  >
+                    {VEHICLE_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    Update
+                  </button>
+                </form>
+              </div>
             </div>
           ))}
         </div>

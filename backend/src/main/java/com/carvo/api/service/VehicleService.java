@@ -79,6 +79,14 @@ public class VehicleService {
         vehicleRepository.delete(vehicle);
     }
 
+    @Transactional
+    public VehicleResponse updateStatus(Long id, String status) {
+        Vehicle vehicle = findEntity(id);
+        vehicle.setStatus(parseStatus(status));
+        vehicle = vehicleRepository.save(vehicle);
+        return toResponse(vehicle);
+    }
+
     private void applyRequest(Vehicle vehicle, VehicleRequest request) {
         vehicle.setMake(request.make());
         vehicle.setModel(request.model());
@@ -94,11 +102,15 @@ public class VehicleService {
             vehicle.setBranch(null);
         }
         if (request.status() != null && !request.status().isBlank()) {
-            try {
-                vehicle.setStatus(VehicleStatus.valueOf(request.status().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                throw new BadRequestException("Invalid vehicle status: " + request.status());
-            }
+            vehicle.setStatus(parseStatus(request.status()));
+        }
+    }
+
+    private static VehicleStatus parseStatus(String status) {
+        try {
+            return VehicleStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Invalid vehicle status: " + status);
         }
     }
 

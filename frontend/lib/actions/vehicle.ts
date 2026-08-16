@@ -70,6 +70,29 @@ export async function updateVehicleAction(formData: FormData): Promise<void> {
   redirect("/admin/vehicles?success=Vehicle%20updated");
 }
 
+export async function updateVehicleStatusAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const id = Number(formData.get("id"));
+  const status = String(formData.get("status") ?? "");
+
+  try {
+    await backendFetch<VehicleResponse>(`/vehicles/${id}/status`, {
+      method: "POST",
+      token: session.token,
+      body: { status },
+    });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Could not update vehicle status.";
+    redirect(`/staff?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/staff");
+  redirect("/staff?success=Vehicle%20status%20updated");
+}
+
 export async function deleteVehicleAction(formData: FormData): Promise<void> {
   const session = await getSession();
   if (!session) {
