@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.carvo.api.dto.checkrecord.CheckRecordResponse;
+import com.carvo.api.entity.Booking;
 import com.carvo.api.entity.CheckRecord;
 import com.carvo.api.entity.User;
 import com.carvo.api.entity.enums.CheckType;
@@ -37,9 +38,13 @@ class AdminControllerCheckRecordTest {
         setId(staff, 1L);
         staff.setName("John");
 
+        Booking booking = new Booking();
+        setId(booking, 100L);
+
         CheckRecord record1 = new CheckRecord();
         setId(record1, 10L);
         setRecordedAt(record1, Instant.now());
+        record1.setBooking(booking);
         record1.setStaff(staff);
         record1.setType(CheckType.CHECK_OUT);
         record1.setOdometerReading(45000);
@@ -49,6 +54,7 @@ class AdminControllerCheckRecordTest {
         CheckRecord record2 = new CheckRecord();
         setId(record2, 11L);
         setRecordedAt(record2, Instant.now());
+        record2.setBooking(booking);
         record2.setStaff(staff);
         record2.setType(CheckType.CHECK_IN);
         record2.setOdometerReading(45150);
