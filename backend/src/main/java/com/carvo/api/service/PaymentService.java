@@ -6,9 +6,11 @@ import com.carvo.api.entity.Booking;
 import com.carvo.api.entity.Payment;
 import com.carvo.api.entity.enums.BookingStatus;
 import com.carvo.api.entity.enums.PaymentStatus;
+import com.carvo.api.entity.enums.Role;
 import com.carvo.api.exception.ConflictException;
 import com.carvo.api.exception.NotFoundException;
 import com.carvo.api.repository.PaymentRepository;
+import com.carvo.api.security.CarvoUserPrincipal;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -43,7 +45,12 @@ public class PaymentService {
         return PaymentResponse.from(paymentRepository.save(payment));
     }
 
-    public PaymentResponse getByBooking(Long bookingId) {
+    public PaymentResponse getByBooking(CarvoUserPrincipal principal, Long bookingId) {
+        Booking booking = bookingService.findEntity(bookingId);
+        boolean isOwner = booking.getCustomer().getId().equals(principal.getId());
+        if (!isOwner && principal.getUser().getRole() == Role.CUSTOMER) {
+            throw new AccessDeniedException("You do not have permission to view this payment.");
+        }
         return paymentRepository.findByBookingId(bookingId)
                 .map(PaymentResponse::from)
                 .orElseThrow(() -> new NotFoundException("No payment found for this booking"));

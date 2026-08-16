@@ -38,7 +38,9 @@ public class CheckRecordController {
     }
 
     @GetMapping
-    public List<CheckRecordResponse> forBooking(@PathVariable Long bookingId) {
-        return checkRecordService.findByBooking(bookingId);
+    public List<CheckRecordResponse> forBooking(
+            @AuthenticationPrincipal CarvoUserPrincipal principal,
+            @PathVariable Long bookingId) {
+        return checkRecordService.findByBooking(principal, bookingId);
     }
 }

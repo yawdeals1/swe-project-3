@@ -32,6 +32,10 @@ carvo:
   admin:
     seed-email: ${ADMIN_SEED_EMAIL:admin@carvo.local}
     seed-password: ${ADMIN_SEED_PASSWORD:}
+  web:
+    # Comma-separated origin(s) allowed to make credentialed cross-origin requests to this API.
+    # Set to the deployed https://{slug}.deploro.app origin in production.
+    allowed-origins: ${CARVO_WEB_ALLOWED_ORIGINS:http://localhost:3000}
 
 logging:
   level:
