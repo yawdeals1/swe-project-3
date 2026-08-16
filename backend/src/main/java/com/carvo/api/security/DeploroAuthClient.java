@@ -22,6 +22,14 @@ import tools.jackson.databind.ObjectMapper;
  * an API key — so this holds no credential of its own. Ground truth for the request/response
  * shapes below came from reading Deploro's own worker source (project-auth.ts), not the (partial)
  * public docs: signup/login never return the session token in the JSON body, only via Set-Cookie.
+ *
+ * {@link #deleteAccountByEmail(String)} is different: it calls Deploro's platform-authenticated
+ * admin API (`/api/projects/:id/auth/users`), not the public `/auth/carvo/*` set above, so it
+ * needs a project-scoped PAT (adminApiToken) — see DEPLORO_ADMIN_API_URL/DEPLORO_ADMIN_API_TOKEN
+ * in application.yml. Best-effort by design: if those aren't configured, or Deploro is
+ * unreachable, it silently no-ops rather than blocking the local staff/customer delete — the
+ * local User row is the source of truth for who can access Carvo's own UI, and Deploro's own
+ * confirmed/verified-email uniqueness check is what actually matters for signup, not this cleanup.
  */
 @Component
 public class DeploroAuthClient {
@@ -32,12 +40,54 @@ public class DeploroAuthClient {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper;
     private final String baseUrl;
+    private final String adminApiUrl;
+    private final String adminApiToken;
 
     public DeploroAuthClient(
             ObjectMapper objectMapper,
-            @Value("${carvo.deploro.auth-base-url}") String baseUrl) {
+            @Value("${carvo.deploro.auth-base-url}") String baseUrl,
+            @Value("${carvo.deploro.admin-api-url:}") String adminApiUrl,
+            @Value("${carvo.deploro.admin-api-token:}") String adminApiToken) {
         this.objectMapper = objectMapper;
         this.baseUrl = baseUrl;
+        this.adminApiUrl = adminApiUrl;
+        this.adminApiToken = adminApiToken;
+    }
+
+    /** Best-effort: finds this email's Deploro Auth-as-a-Service account (if any) and deletes it,
+     *  so a hard-deleted staff/admin can be re-invited without hitting Deploro's
+     *  already-confirmed-email no-op. No-ops silently (never throws) if the admin API isn't
+     *  configured, the email has no matching account, or Deploro is unreachable — this must never
+     *  block the caller's own local delete. */
+    public void deleteAccountByEmail(String email) {
+        if (adminApiUrl == null || adminApiUrl.isBlank() || adminApiToken == null || adminApiToken.isBlank()) {
+            return;
+        }
+        try {
+            HttpRequest listRequest = HttpRequest.newBuilder(URI.create(adminApiUrl + "/auth/users"))
+                    .header("Authorization", "Bearer " + adminApiToken)
+                    .GET()
+                    .build();
+            HttpResponse<String> listResponse = httpClient.send(listRequest, HttpResponse.BodyHandlers.ofString());
+            if (listResponse.statusCode() != 200) return;
+            JsonNode users = parse(listResponse.body()).path("users");
+            for (JsonNode user : users) {
+                if (email.equalsIgnoreCase(user.path("email").asText())) {
+                    HttpRequest deleteRequest = HttpRequest
+                            .newBuilder(URI.create(adminApiUrl + "/auth/users/" + user.path("id").asText()))
+                            .header("Authorization", "Bearer " + adminApiToken)
+                            .DELETE()
+                            .build();
+                    httpClient.send(deleteRequest, HttpResponse.BodyHandlers.ofString());
+                    return;
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            // Best-effort — Deploro being unreachable must not block the local delete.
+        }
     }
 
     /** Always a no-op success from the caller's point of view — Deploro's signup endpoint
