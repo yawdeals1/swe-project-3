@@ -1,16 +1,7 @@
 package com.carvo.api.controller;
 
-import com.carvo.api.dto.admin.BranchRequest;
-import com.carvo.api.dto.admin.BranchResponse;
-import com.carvo.api.dto.admin.CreateStaffRequest;
-import com.carvo.api.dto.admin.DashboardResponse;
-import com.carvo.api.dto.admin.UpdateStaffRequest;
-import com.carvo.api.dto.booking.BookingResponse;
-import com.carvo.api.dto.common.UserSummary;
-import com.carvo.api.service.AdminService;
-import com.carvo.api.service.BookingService;
-import jakarta.validation.Valid;
 import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,16 +14,32 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.carvo.api.dto.admin.BranchRequest;
+import com.carvo.api.dto.admin.BranchResponse;
+import com.carvo.api.dto.admin.CreateStaffRequest;
+import com.carvo.api.dto.admin.DashboardResponse;
+import com.carvo.api.dto.admin.UpdateStaffRequest;
+import com.carvo.api.dto.booking.BookingResponse;
+import com.carvo.api.dto.checkrecord.CheckRecordResponse;
+import com.carvo.api.dto.common.UserSummary;
+import com.carvo.api.service.AdminService;
+import com.carvo.api.service.BookingService;
+import com.carvo.api.service.CheckRecordService;
+
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminController {
 
     private final AdminService adminService;
     private final BookingService bookingService;
+    private final CheckRecordService checkRecordService;
 
-    public AdminController(AdminService adminService, BookingService bookingService) {
+    public AdminController(AdminService adminService, BookingService bookingService, CheckRecordService checkRecordService) {
         this.adminService = adminService;
         this.bookingService = bookingService;
+        this.checkRecordService = checkRecordService;
     }
 
     @PostMapping("/staff")
@@ -74,6 +81,11 @@ public class AdminController {
     @GetMapping("/bookings")
     public List<BookingResponse> allBookings(@RequestParam(required = false) String status) {
         return bookingService.findAll(status);
+    }
+
+    @GetMapping("/audit-log")
+    public List<CheckRecordResponse> auditLog() {
+        return checkRecordService.findAll();
     }
 
     @GetMapping("/dashboard")

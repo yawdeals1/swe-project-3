@@ -6,6 +6,7 @@ const TABS = [
   { href: "/admin/staff", label: "Staff" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/bookings", label: "Bookings" },
+  { href: "/admin/audit-log", label: "Audit Log" },
 ];
 
 export default function AdminSectionLayout({ children }: { children: React.ReactNode }) {
