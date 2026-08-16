@@ -7,6 +7,7 @@ import com.carvo.api.dto.common.UserSummary;
 import com.carvo.api.entity.User;
 import com.carvo.api.entity.enums.Role;
 import com.carvo.api.entity.enums.UserStatus;
+import com.carvo.api.exception.AccountDisabledException;
 import com.carvo.api.exception.ConflictException;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.security.DeploroAuthClient;
@@ -60,6 +61,14 @@ public class AuthService {
                     created.setStatus(UserStatus.ACTIVE);
                     return created;
                 });
+
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new AccountDisabledException("This account has been suspended. Contact support for assistance.");
+        }
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new AccountDisabledException("This account is no longer active.");
+        }
+
         if (!result.accountId().equals(user.getDeploroAccountId())) {
             user.setDeploroAccountId(result.accountId());
         }
