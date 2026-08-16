@@ -5,9 +5,10 @@ import { Banner } from "@/components/Banner";
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, sent } = await searchParams;
+  const success = sent ? "If an account exists for that email, we've sent a reset link." : undefined;
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
@@ -17,7 +18,7 @@ export default async function ForgotPasswordPage({
           Enter your account email and we&apos;ll send you a link to set a new password.
         </p>
       </div>
-      <Banner error={error} />
+      <Banner error={error} success={success} />
       <form
         action={requestPasswordResetAction}
         className="flex flex-col gap-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm"
@@ -27,6 +28,7 @@ export default async function ForgotPasswordPage({
           <input
             type="email"
             name="email"
+            autoComplete="email"
             required
             className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />

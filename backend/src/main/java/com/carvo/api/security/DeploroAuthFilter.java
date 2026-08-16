@@ -43,10 +43,18 @@ public class DeploroAuthFilter extends OncePerRequestFilter {
             if (sessionUser.isPresent() && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(sessionUser.get().accountId());
-                    var authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    // Deploro's session check has no notion of Carvo's own account status, so a
+                    // suspended/deleted customer's still-valid Deploro token would otherwise keep
+                    // authenticating here forever — this is the actual enforcement point for
+                    // AdminService.suspendCustomer/deleteCustomer (FR-4.4), since nothing routes
+                    // this manually-built token through an AuthenticationManager that would
+                    // otherwise check isEnabled()/isAccountNonLocked() for us.
+                    if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
+                        var authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
                 } catch (UsernameNotFoundException e) {
                     // Valid Deploro session, but no local app_user linked to it yet (e.g. session
                     // predates login()'s backfill) — leave the request unauthenticated rather than

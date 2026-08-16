@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetch } from "@/lib/backend";
+import { cancelBookingAction } from "@/lib/actions/booking";
 import { getSession } from "@/lib/session";
 import { Banner } from "@/components/Banner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -62,22 +63,32 @@ export default async function CustomerDashboardPage({
               </div>
               <div className="flex flex-col gap-3">
                 {active.map((booking) => (
-                  <Link
+                  <div
                     key={booking.id}
-                    href={`/dashboard/bookings/${booking.id}`}
                     className="flex flex-col items-start justify-between gap-3 rounded-lg border border-outline-variant bg-surface p-4 transition-colors hover:border-outline sm:flex-row sm:items-center"
                   >
-                    <div>
+                    <Link href={`/dashboard/bookings/${booking.id}`} className="min-w-0 flex-1">
                       <h4 className="font-medium text-on-surface">{booking.vehicleLabel}</h4>
                       <p className="text-body-sm text-on-surface-variant">
                         {formatDate(booking.startDate)} &ndash; {formatDate(booking.endDate)}
                       </p>
-                    </div>
+                    </Link>
                     <div className="flex flex-col gap-2 sm:items-end">
                       <StatusBadge status={booking.status} />
                       <span className="font-mono text-numeric-data text-on-surface-variant">{formatCurrency(booking.totalAmount)}</span>
+                      {booking.status === "PENDING" ? (
+                        <form action={cancelBookingAction}>
+                          <input type="hidden" name="bookingId" value={booking.id} />
+                          <button
+                            type="submit"
+                            className="rounded-lg border border-error/40 px-3 py-1.5 text-label-caps font-medium text-error transition-colors hover:bg-error-container/40"
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      ) : null}
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </>

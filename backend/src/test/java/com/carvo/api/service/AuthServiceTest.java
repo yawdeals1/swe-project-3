@@ -13,6 +13,7 @@ import com.carvo.api.dto.auth.RegisterRequest;
 import com.carvo.api.entity.User;
 import com.carvo.api.entity.enums.Role;
 import com.carvo.api.entity.enums.UserStatus;
+import com.carvo.api.exception.AccountDisabledException;
 import com.carvo.api.exception.ConflictException;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.security.DeploroAuthClient;
@@ -121,6 +122,64 @@ class AuthServiceTest {
         verify(userRepository).save(savedUser.capture());
         assertThat(savedUser.getValue().getDeploroAccountId()).isEqualTo("deploro-acct-9");
         assertThat(response.user().role()).isEqualTo("STAFF");
+    }
+
+    @Test
+    void login_suspendedAccount_throwsAndDoesNotIssueToken() {
+        LoginRequest request = new LoginRequest("suspended@example.com", "password123");
+        User existing = existingUser("suspended@example.com", Role.CUSTOMER, "deploro-acct-5");
+        existing.setStatus(UserStatus.SUSPENDED);
+        when(deploroAuthClient.login("suspended@example.com", "password123"))
+                .thenReturn(new DeploroAuthClient.LoginResult(
+                        "deploro-acct-5", "deploro-acct-5", "suspended@example.com", "Suspended Person"));
+        when(userRepository.findByDeploroAccountId("deploro-acct-5")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> authService.login(request)).isInstanceOf(AccountDisabledException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void login_deletedAccount_throwsAndDoesNotIssueToken() {
+        LoginRequest request = new LoginRequest("deleted@example.com", "password123");
+        User existing = existingUser("deleted@example.com", Role.CUSTOMER, "deploro-acct-6");
+        existing.setStatus(UserStatus.DELETED);
+        when(deploroAuthClient.login("deleted@example.com", "password123"))
+                .thenReturn(new DeploroAuthClient.LoginResult(
+                        "deploro-acct-6", "deploro-acct-6", "deleted@example.com", "Deleted Person"));
+        when(userRepository.findByDeploroAccountId("deploro-acct-6")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> authService.login(request)).isInstanceOf(AccountDisabledException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void logout_withBearerToken_forwardsRawTokenToDeploro() {
+        authService.logout("Bearer deploro-session-token");
+
+        verify(deploroAuthClient).logout("deploro-session-token");
+    }
+
+    @Test
+    void logout_withoutBearerToken_isNoOp() {
+        authService.logout(null);
+
+        verify(deploroAuthClient, never()).logout(any());
+    }
+
+    @Test
+    void requestPasswordReset_delegatesToDeploro() {
+        authService.requestPasswordReset("ama@example.com");
+
+        verify(deploroAuthClient).requestPasswordReset("ama@example.com");
+    }
+
+    @Test
+    void resetPassword_delegatesToDeploro() {
+        authService.resetPassword("reset-token", "newPassword123");
+
+        verify(deploroAuthClient).resetPassword("reset-token", "newPassword123");
     }
 
     private User existingUser(String email, Role role, String deploroAccountId) {

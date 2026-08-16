@@ -15,6 +15,7 @@ import com.carvo.api.repository.VehicleRepository;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -88,6 +89,16 @@ public class BookingService {
     public BookingResponse reject(Long id, Long staffId) {
         Booking booking = findEntity(id);
         requireStatus(booking, BookingStatus.PENDING, "rejected");
+        booking.setStatus(BookingStatus.CANCELLED);
+        return BookingResponse.from(bookingRepository.save(booking));
+    }
+
+    public BookingResponse cancel(Long bookingId, Long customerId) {
+        Booking booking = findEntity(bookingId);
+        if (!booking.getCustomer().getId().equals(customerId)) {
+            throw new AccessDeniedException("You do not have permission to cancel this booking.");
+        }
+        requireStatus(booking, BookingStatus.PENDING, "cancelled");
         booking.setStatus(BookingStatus.CANCELLED);
         return BookingResponse.from(bookingRepository.save(booking));
     }

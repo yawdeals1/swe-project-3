@@ -69,12 +69,6 @@ export async function registerAction(formData: FormData): Promise<void> {
   redirect(roleHome(auth.user!.role));
 }
 
-export async function logoutAction(): Promise<void> {
-  const store = await cookies();
-  store.delete(SESSION_COOKIE);
-  redirect("/login");
-}
-
 export async function requestPasswordResetAction(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "");
 
@@ -85,19 +79,41 @@ export async function requestPasswordResetAction(formData: FormData): Promise<vo
     redirect(`/forgot-password?error=${encodeURIComponent(message)}`);
   }
 
-  redirect("/login?pending=reset");
+  redirect("/forgot-password?sent=1");
 }
 
-export async function confirmPasswordResetAction(formData: FormData): Promise<void> {
+export async function resetPasswordAction(formData: FormData): Promise<void> {
   const token = String(formData.get("token") ?? "");
   const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (password !== confirmPassword) {
+    redirect(
+        `/reset-password?reset_token=${encodeURIComponent(token)}&error=${encodeURIComponent("Passwords do not match.")}`);
+  }
 
   try {
     await backendFetch("/auth/password-reset/confirm", { method: "POST", body: { token, password } });
   } catch (e) {
-    const message = e instanceof ApiError ? e.message : "This reset link is invalid or has expired.";
-    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent(message)}`);
+    const message = e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
+    redirect(`/reset-password?reset_token=${encodeURIComponent(token)}&error=${encodeURIComponent(message)}`);
   }
 
-  redirect("/login?verified=reset");
+  redirect("/login?reset=1");
+}
+
+export async function logoutAction(): Promise<void> {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  if (token) {
+    // Best-effort: invalidate the token server-side (FR-1.4) before dropping the cookie, so it
+    // can't be replayed. Deploro being unreachable must never block the user from logging out.
+    try {
+      await backendFetch("/auth/logout", { method: "POST", token });
+    } catch {
+      // ignore — the cookie is cleared below regardless
+    }
+  }
+  store.delete(SESSION_COOKIE);
+  redirect("/login");
 }

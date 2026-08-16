@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { confirmPasswordResetAction } from "@/lib/actions/auth";
+import { resetPasswordAction } from "@/lib/actions/auth";
 import { Banner } from "@/components/Banner";
 
 export default async function ResetPasswordPage({
@@ -8,6 +8,8 @@ export default async function ResetPasswordPage({
   searchParams: Promise<{ token?: string; reset_token?: string; error?: string }>;
 }) {
   const { token, reset_token, error } = await searchParams;
+  // Deploro's reset email lands here with ?reset_token=...; ?token=... is accepted too so a
+  // link built by hand (or an older email) still works.
   const resetToken = token ?? reset_token ?? "";
 
   return (
@@ -17,7 +19,7 @@ export default async function ResetPasswordPage({
 
       {resetToken ? (
         <form
-          action={confirmPasswordResetAction}
+          action={resetPasswordAction}
           className="flex flex-col gap-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm"
         >
           <input type="hidden" name="token" value={resetToken} />
@@ -32,6 +34,17 @@ export default async function ResetPasswordPage({
               className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <span className="text-label-caps text-secondary">At least 8 characters.</span>
+          </label>
+          <label className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
+            Confirm new password
+            <input
+              type="password"
+              name="confirmPassword"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
           </label>
           <button
             type="submit"

@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,15 +35,21 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        authService.logout(authorization);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/password-reset/request")
     public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
-        authService.requestPasswordReset(request);
-        return ResponseEntity.ok().build();
+        authService.requestPasswordReset(request.email());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/password-reset/confirm")
     public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
-        authService.confirmPasswordReset(request);
-        return ResponseEntity.ok().build();
+        authService.resetPassword(request.token(), request.password());
+        return ResponseEntity.noContent().build();
     }
 }

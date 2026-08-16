@@ -108,4 +108,42 @@ class DeploroAuthFilterTest {
         assertThat(auth.getAuthorities()).extracting(Object::toString).containsExactly("ROLE_STAFF");
         verify(filterChain).doFilter(request, response);
     }
+
+    @Test
+    void suspendedLocalUser_leavesRequestUnauthenticatedDespiteValidDeploroSession() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer good-token");
+        when(deploroAuthClient.validateSession("good-token"))
+                .thenReturn(Optional.of(new DeploroAuthClient.SessionUser("deploro-acct-1", "a@example.com")));
+        User user = new User();
+        user.setEmail("a@example.com");
+        user.setName("A Person");
+        user.setRole(Role.CUSTOMER);
+        user.setStatus(UserStatus.SUSPENDED);
+        user.setDeploroAccountId("deploro-acct-1");
+        when(userDetailsService.loadUserByUsername("deploro-acct-1")).thenReturn(new CarvoUserPrincipal(user));
+
+        filter().doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void deletedLocalUser_leavesRequestUnauthenticatedDespiteValidDeploroSession() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer good-token");
+        when(deploroAuthClient.validateSession("good-token"))
+                .thenReturn(Optional.of(new DeploroAuthClient.SessionUser("deploro-acct-1", "a@example.com")));
+        User user = new User();
+        user.setEmail("a@example.com");
+        user.setName("A Person");
+        user.setRole(Role.CUSTOMER);
+        user.setStatus(UserStatus.DELETED);
+        user.setDeploroAccountId("deploro-acct-1");
+        when(userDetailsService.loadUserByUsername("deploro-acct-1")).thenReturn(new CarvoUserPrincipal(user));
+
+        filter().doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(filterChain).doFilter(request, response);
+    }
 }

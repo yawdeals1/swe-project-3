@@ -5,19 +5,16 @@ import { Banner } from "@/components/Banner";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; pending?: string; verified?: string }>;
+  searchParams: Promise<{ error?: string; pending?: string; verified?: string; reset?: string }>;
 }) {
-  const { error, pending, verified } = await searchParams;
-  const success =
-    verified === "reset"
-      ? "Password updated — sign in below."
-      : verified
-        ? "Email confirmed — sign in below."
-        : pending === "reset"
-          ? "Check your email for a link to set a new password."
-          : pending
-            ? "Check your email to confirm your account, then sign in below."
-            : undefined;
+  const { error, pending, verified, reset } = await searchParams;
+  const success = verified
+    ? "Email confirmed — sign in below."
+    : pending
+      ? "Check your email to confirm your account, then sign in below."
+      : reset
+        ? "Password updated — sign in with your new password."
+        : undefined;
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
@@ -50,6 +47,9 @@ export default async function LoginPage({
             className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </label>
+        <Link href="/forgot-password" className="self-end text-sm font-medium text-zinc-950 dark:text-zinc-50">
+          Forgot password?
+        </Link>
         <button
           type="submit"
           className="mt-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-on-primary transition-colors hover:bg-primary-container"

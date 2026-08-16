@@ -2,13 +2,12 @@ package com.carvo.api.service;
 
 import com.carvo.api.dto.auth.AuthResponse;
 import com.carvo.api.dto.auth.LoginRequest;
-import com.carvo.api.dto.auth.PasswordResetConfirmRequest;
-import com.carvo.api.dto.auth.PasswordResetRequest;
 import com.carvo.api.dto.auth.RegisterRequest;
 import com.carvo.api.dto.common.UserSummary;
 import com.carvo.api.entity.User;
 import com.carvo.api.entity.enums.Role;
 import com.carvo.api.entity.enums.UserStatus;
+import com.carvo.api.exception.AccountDisabledException;
 import com.carvo.api.exception.ConflictException;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.security.DeploroAuthClient;
@@ -62,6 +61,14 @@ public class AuthService {
                     created.setStatus(UserStatus.ACTIVE);
                     return created;
                 });
+
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new AccountDisabledException("This account has been suspended. Contact support for assistance.");
+        }
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new AccountDisabledException("This account is no longer active.");
+        }
+
         if (!result.accountId().equals(user.getDeploroAccountId())) {
             user.setDeploroAccountId(result.accountId());
         }
@@ -70,11 +77,20 @@ public class AuthService {
         return AuthResponse.authenticated(result.token(), UserSummary.from(user));
     }
 
-    public void requestPasswordReset(PasswordResetRequest request) {
-        deploroAuthClient.requestPasswordReset(request.email());
+    /** No-op if there's no bearer token to invalidate — logout is idempotent either way. */
+    public void logout(String bearerToken) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            deploroAuthClient.logout(bearerToken.substring(7));
+        }
     }
 
-    public void confirmPasswordReset(PasswordResetConfirmRequest request) {
-        deploroAuthClient.resetPassword(request.token(), request.password());
+    /** Always succeeds from the caller's point of view (FR-1.5) — Deploro's own endpoint is
+     *  anti-enumeration, so there's nothing more specific to tell the caller either way. */
+    public void requestPasswordReset(String email) {
+        deploroAuthClient.requestPasswordReset(email);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        deploroAuthClient.resetPassword(token, newPassword);
     }
 }

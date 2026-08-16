@@ -93,6 +93,23 @@ public class DeploroAuthClient {
         return Optional.of(new SessionUser(user.path("id").asText(), user.path("email").asText()));
     }
 
+    /** Best-effort: invalidates the session token server-side (FR-1.4) so it can't be replayed
+     *  after logout, but a failure here must never block the caller from completing logout
+     *  locally — any non-200 or network error is swallowed rather than surfaced, since the
+     *  client-side cookie clear proceeds either way. */
+    public void logout(String token) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/auth/" + SLUG + "/logout"))
+                .header("Authorization", "Bearer " + token)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        try {
+            execute(request);
+        } catch (IllegalStateException e) {
+            // Deploro unreachable — nothing more we can do; the token will simply expire on its
+            // own, and the local session is being cleared regardless.
+        }
+    }
+
     /** Always a no-op success from the caller's point of view — Deploro's request-reset endpoint
      *  is anti-enumeration by design (same {@code {ok:true}} response whether or not the email
      *  has a confirmed email/password identity) and emails a reset link only when one does. */
@@ -100,8 +117,8 @@ public class DeploroAuthClient {
         send("POST", "/auth/" + SLUG + "/email-password/request-reset", Map.of("email", email));
     }
 
-    /** Resetting revokes every existing session for the account (FR-1.5's own security
-     *  benefit) but does not sign the caller back in — the frontend still routes them to login. */
+    /** Resetting revokes every existing session for the account (a security benefit of FR-1.5)
+     *  but does not sign the caller back in — the frontend still routes them to login after. */
     public void resetPassword(String token, String newPassword) {
         HttpResponse<String> response =
                 send("POST", "/auth/" + SLUG + "/email-password/reset", Map.of("token", token, "password", newPassword));

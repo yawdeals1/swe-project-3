@@ -14,7 +14,9 @@ const ADMIN_ITEMS = [
   { href: "/admin", label: "Analytics", icon: "analytics" },
   { href: "/admin/vehicles", label: "Fleet", icon: "directions_car" },
   { href: "/admin/bookings", label: "Bookings", icon: "event_note" },
-  { href: "/admin/staff", label: "Staff", icon: "badge" },
+  { href: "/admin/customers", label: "Customers", icon: "badge" },
+  { href: "/admin/staff", label: "Staff", icon: "shield" },
+  { href: "/admin/audit-log", label: "Audit Log", icon: "fact_check" },
 ];
 
 function initials(name: string) {
