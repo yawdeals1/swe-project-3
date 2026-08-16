@@ -28,11 +28,12 @@ function newImageFiles(formData: FormData): File[] {
 }
 
 async function uploadImages(vehicleId: number, files: File[], token: string) {
-  for (const file of files) {
-    const body = new FormData();
-    body.set("file", file);
-    await backendUpload(`/vehicles/${vehicleId}/images`, body, { token });
-  }
+  await Promise.all(
+      files.map((file) => {
+        const body = new FormData();
+        body.set("file", file);
+        return backendUpload(`/vehicles/${vehicleId}/images`, body, { token });
+      }));
 }
 
 export async function createVehicleAction(formData: FormData): Promise<void> {
