@@ -67,4 +67,11 @@ public class AuthService {
 
         return AuthResponse.authenticated(result.token(), UserSummary.from(user));
     }
+
+    /** No-op if there's no bearer token to invalidate — logout is idempotent either way. */
+    public void logout(String bearerToken) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            deploroAuthClient.logout(bearerToken.substring(7));
+        }
+    }
 }

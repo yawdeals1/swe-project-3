@@ -93,6 +93,23 @@ public class DeploroAuthClient {
         return Optional.of(new SessionUser(user.path("id").asText(), user.path("email").asText()));
     }
 
+    /** Best-effort: invalidates the session token server-side (FR-1.4) so it can't be replayed
+     *  after logout, but a failure here must never block the caller from completing logout
+     *  locally — any non-200 or network error is swallowed rather than surfaced, since the
+     *  client-side cookie clear proceeds either way. */
+    public void logout(String token) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/auth/" + SLUG + "/logout"))
+                .header("Authorization", "Bearer " + token)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        try {
+            execute(request);
+        } catch (IllegalStateException e) {
+            // Deploro unreachable — nothing more we can do; the token will simply expire on its
+            // own, and the local session is being cleared regardless.
+        }
+    }
+
     private Optional<String> extractSessionToken(HttpResponse<String> response) {
         String prefix = SESSION_COOKIE_NAME + "=";
         return response.headers().allValues("set-cookie").stream()

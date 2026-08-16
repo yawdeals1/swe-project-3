@@ -123,6 +123,20 @@ class AuthServiceTest {
         assertThat(response.user().role()).isEqualTo("STAFF");
     }
 
+    @Test
+    void logout_withBearerToken_forwardsRawTokenToDeploro() {
+        authService.logout("Bearer deploro-session-token");
+
+        verify(deploroAuthClient).logout("deploro-session-token");
+    }
+
+    @Test
+    void logout_withoutBearerToken_isNoOp() {
+        authService.logout(null);
+
+        verify(deploroAuthClient, never()).logout(any());
+    }
+
     private User existingUser(String email, Role role, String deploroAccountId) {
         User user = new User();
         user.setEmail(email);

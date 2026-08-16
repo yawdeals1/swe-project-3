@@ -71,6 +71,16 @@ export async function registerAction(formData: FormData): Promise<void> {
 
 export async function logoutAction(): Promise<void> {
   const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  if (token) {
+    // Best-effort: invalidate the token server-side (FR-1.4) before dropping the cookie, so it
+    // can't be replayed. Deploro being unreachable must never block the user from logging out.
+    try {
+      await backendFetch("/auth/logout", { method: "POST", token });
+    } catch {
+      // ignore — the cookie is cleared below regardless
+    }
+  }
   store.delete(SESSION_COOKIE);
   redirect("/login");
 }
