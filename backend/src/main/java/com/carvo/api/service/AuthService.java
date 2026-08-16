@@ -74,4 +74,14 @@ public class AuthService {
             deploroAuthClient.logout(bearerToken.substring(7));
         }
     }
+
+    /** Always succeeds from the caller's point of view (FR-1.5) — Deploro's own endpoint is
+     *  anti-enumeration, so there's nothing more specific to tell the caller either way. */
+    public void requestPasswordReset(String email) {
+        deploroAuthClient.requestPasswordReset(email);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        deploroAuthClient.resetPassword(token, newPassword);
+    }
 }

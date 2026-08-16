@@ -137,6 +137,20 @@ class AuthServiceTest {
         verify(deploroAuthClient, never()).logout(any());
     }
 
+    @Test
+    void requestPasswordReset_delegatesToDeploro() {
+        authService.requestPasswordReset("ama@example.com");
+
+        verify(deploroAuthClient).requestPasswordReset("ama@example.com");
+    }
+
+    @Test
+    void resetPassword_delegatesToDeploro() {
+        authService.resetPassword("reset-token", "newPassword123");
+
+        verify(deploroAuthClient).resetPassword("reset-token", "newPassword123");
+    }
+
     private User existingUser(String email, Role role, String deploroAccountId) {
         User user = new User();
         user.setEmail(email);
