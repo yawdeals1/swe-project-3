@@ -1,13 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { loginAction } from "@/lib/actions/auth";
 import { Banner } from "@/components/Banner";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; pending?: string; verified?: string; reset?: string }>;
+  searchParams: Promise<{ error?: string; pending?: string; verified?: string; reset?: string; reset_token?: string }>;
 }) {
-  const { error, pending, verified, reset } = await searchParams;
+  const { error, pending, verified, reset, reset_token } = await searchParams;
+  // Deploro's Site URL is a single fixed redirect target shared by both the email-verify and
+  // password-reset links (see auth-base-url in application.yml) — it appends ?verified=1 or
+  // ?reset_token=<token> to whatever page it points at. This page is that target for "verified";
+  // a reset_token means the same landing hit us instead of /reset-password, so forward it there
+  // rather than stranding the token on a page that never reads it.
+  if (reset_token) {
+    redirect(`/reset-password?reset_token=${encodeURIComponent(reset_token)}`);
+  }
   const success = verified
     ? "Email confirmed — sign in below."
     : pending
