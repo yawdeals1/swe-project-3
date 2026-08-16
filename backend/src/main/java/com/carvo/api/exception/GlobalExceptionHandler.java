@@ -10,6 +10,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -48,6 +49,11 @@ public class GlobalExceptionHandler {
             return build(HttpStatus.CONFLICT, "This vehicle is already booked for one or more of the selected dates.");
         }
         return build(HttpStatus.CONFLICT, "The request conflicts with existing data.");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return build(HttpStatus.BAD_REQUEST, "That file is too large. Photos must be 8MB or smaller.");
     }
 
     @ExceptionHandler({AccessDeniedException.class})

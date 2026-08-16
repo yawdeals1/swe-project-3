@@ -1,5 +1,7 @@
 package com.carvo.api.service;
 
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class AdminService {
     private final BookingRepository bookingRepository;
     private final PaymentRepository paymentRepository;
     private final DeploroAuthClient deploroAuthClient;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AdminService(
             UserRepository userRepository,
@@ -57,18 +60,25 @@ public class AdminService {
         User user = new User();
         user.setName(request.name());
         user.setEmail(request.email());
-        user.setPhone(request.phone());
         user.setRole(Role.valueOf(request.role()));
         user.setStatus(UserStatus.ACTIVE);
         if (request.branchId() != null) {
             user.setBranch(findBranch(request.branchId()));
         }
         UserSummary summary = UserSummary.from(userRepository.save(user));
-        // Staff/Admin sign in with the password given here (not OTP) — the confirmation email
-        // Deploro sends must be clicked once before their first login (FR-1.7 bootstrap; same gate
-        // AdminSeeder's seed Admin goes through).
-        deploroAuthClient.signup(request.email(), request.password(), request.name());
+        // The admin creating this account never chooses or sees its password — Deploro requires
+        // one to exist for the email/password identity, so a random value is generated and
+        // discarded immediately. The confirmation email Deploro sends must be clicked once before
+        // first login (FR-1.7 bootstrap; same gate AdminSeeder's seed Admin goes through), after
+        // which the new staff member sets their own password via "forgot password" on the login page.
+        deploroAuthClient.signup(request.email(), generateRandomPassword(), request.name());
         return summary;
+    }
+
+    private String generateRandomPassword() {
+        byte[] bytes = new byte[24];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     public List<UserSummary> listStaff() {

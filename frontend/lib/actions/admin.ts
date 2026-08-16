@@ -20,8 +20,6 @@ export async function createStaffAction(formData: FormData): Promise<void> {
       body: {
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
-        phone: String(formData.get("phone") ?? ""),
-        password: String(formData.get("password") ?? ""),
         role: String(formData.get("role") ?? "STAFF"),
         branchId: branchIdRaw ? Number(branchIdRaw) : null,
       },

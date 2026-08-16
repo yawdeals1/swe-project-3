@@ -11,30 +11,33 @@ export default async function RegisterPage({
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
+      <h1 className="text-headline-lg text-on-surface">Create an account</h1>
       <Banner error={error} />
-      <form action={registerAction} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
+      <form
+        action={registerAction}
+        className="flex flex-col gap-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm"
+      >
+        <label className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
           Full name
           <input
             type="text"
             name="name"
             autoComplete="name"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
           Email
           <input
             type="email"
             name="email"
             autoComplete="email"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
           Password
           <input
             type="password"
@@ -42,20 +45,20 @@ export default async function RegisterPage({
             autoComplete="new-password"
             required
             minLength={8}
-            className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
-          <span className="text-xs text-zinc-500">At least 8 characters.</span>
+          <span className="text-label-caps text-secondary">At least 8 characters.</span>
         </label>
         <button
           type="submit"
-          className="mt-2 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+          className="mt-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-on-primary transition-colors hover:bg-primary-container"
         >
           Sign up
         </button>
       </form>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-body-sm text-on-surface-variant">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-zinc-950 dark:text-zinc-50">
+        <Link href="/login" className="font-medium text-primary hover:underline">
           Log in
         </Link>
       </p>

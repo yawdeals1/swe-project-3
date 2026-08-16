@@ -3,6 +3,7 @@ package com.carvo.api.controller;
 import com.carvo.api.dto.vehicle.VehicleRequest;
 import com.carvo.api.dto.vehicle.VehicleResponse;
 import com.carvo.api.dto.vehicle.VehicleStatusUpdateRequest;
+import com.carvo.api.entity.VehicleImage;
 import com.carvo.api.service.VehicleService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/vehicles")
@@ -67,5 +70,27 @@ public class VehicleController {
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public VehicleResponse updateStatus(@PathVariable Long id, @Valid @RequestBody VehicleStatusUpdateRequest request) {
         return vehicleService.updateStatus(id, request.status());
+    }
+
+    @PostMapping("/{id}/images")
+    public VehicleResponse addImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        return vehicleService.addImage(id, file);
+    }
+
+    @DeleteMapping("/{id}/images/{imageId}")
+    public VehicleResponse deleteImage(@PathVariable Long id, @PathVariable Long imageId) {
+        return vehicleService.deleteImage(id, imageId);
+    }
+
+    @GetMapping("/images/{imageId}")
+    public ResponseEntity<byte[]> getImage(@PathVariable Long imageId) {
+        VehicleImage image = vehicleService.getImage(imageId);
+        MediaType mediaType = image.getContentType() != null
+                ? MediaType.parseMediaType(image.getContentType())
+                : MediaType.APPLICATION_OCTET_STREAM;
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header("Cache-Control", "public, max-age=31536000, immutable")
+                .body(image.getImageData());
     }
 }

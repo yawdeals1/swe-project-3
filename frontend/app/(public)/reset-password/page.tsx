@@ -5,60 +5,63 @@ import { Banner } from "@/components/Banner";
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reset_token?: string; error?: string }>;
+  searchParams: Promise<{ token?: string; reset_token?: string; error?: string }>;
 }) {
-  const { reset_token: token, error } = await searchParams;
-
-  if (!token) {
-    return (
-      <div className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
-        <h1 className="text-2xl font-semibold tracking-tight">Reset your password</h1>
-        <Banner error="This reset link is missing or invalid. Request a new one." />
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          <Link href="/forgot-password" className="font-medium text-zinc-950 dark:text-zinc-50">
-            Request a new link
-          </Link>
-        </p>
-      </div>
-    );
-  }
+  const { token, reset_token, error } = await searchParams;
+  // Deploro's reset email lands here with ?reset_token=...; ?token=... is accepted too so a
+  // link built by hand (or an older email) still works.
+  const resetToken = token ?? reset_token ?? "";
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight">Choose a new password</h1>
+      <h1 className="text-headline-lg text-on-surface">Set a new password</h1>
       <Banner error={error} />
-      <form action={resetPasswordAction} className="flex flex-col gap-4">
-        <input type="hidden" name="token" value={token} />
-        <label className="flex flex-col gap-1 text-sm">
-          New password
-          <input
-            type="password"
-            name="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          <span className="text-xs text-zinc-500">At least 8 characters.</span>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Confirm new password
-          <input
-            type="password"
-            name="confirmPassword"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </label>
-        <button
-          type="submit"
-          className="mt-2 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+
+      {resetToken ? (
+        <form
+          action={resetPasswordAction}
+          className="flex flex-col gap-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm"
         >
-          Update password
-        </button>
-      </form>
+          <input type="hidden" name="token" value={resetToken} />
+          <label className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
+            New password
+            <input
+              type="password"
+              name="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+            <span className="text-label-caps text-secondary">At least 8 characters.</span>
+          </label>
+          <label className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
+            Confirm new password
+            <input
+              type="password"
+              name="confirmPassword"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </label>
+          <button
+            type="submit"
+            className="mt-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-on-primary transition-colors hover:bg-primary-container"
+          >
+            Set password
+          </button>
+        </form>
+      ) : (
+        <p className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 text-body-md text-on-surface-variant shadow-sm">
+          This reset link is missing its token. Request a new one from the{" "}
+          <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+            forgot password
+          </Link>{" "}
+          page.
+        </p>
+      )}
     </div>
   );
 }
