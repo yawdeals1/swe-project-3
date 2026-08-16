@@ -121,6 +121,9 @@ public class AdminService {
     public void deleteStaff(Long id) {
         User user = findStaffOrAdmin(id);
         userRepository.delete(user);
+        // Best-effort: also remove the matching Deploro Auth-as-a-Service account, so this email
+        // isn't stuck "already confirmed" (and unable to receive a fresh invite) if re-added later.
+        deploroAuthClient.deleteAccountByEmail(user.getEmail());
     }
 
     public DashboardResponse dashboard() {

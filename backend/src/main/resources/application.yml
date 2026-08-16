@@ -23,6 +23,12 @@ server:
 carvo:
   deploro:
     auth-base-url: ${DEPLORO_AUTH_BASE_URL:https://gallium-worker.calebmensah.workers.dev}
+    # Platform-authenticated admin API (distinct from auth-base-url's public /auth/carvo/* routes)
+    # — used only to delete a matching Deploro Auth-as-a-Service account when a staff/admin user
+    # is hard-deleted. Optional: unset in an environment with no DEPLORO_ADMIN_API_URL/TOKEN just
+    # means that cleanup step no-ops (see DeploroAuthClient.deleteAccountByEmail).
+    admin-api-url: ${DEPLORO_ADMIN_API_URL:}
+    admin-api-token: ${DEPLORO_ADMIN_API_TOKEN:}
   admin:
     seed-email: ${ADMIN_SEED_EMAIL:admin@carvo.local}
     seed-password: ${ADMIN_SEED_PASSWORD:}
