@@ -21,8 +21,16 @@ public class VehicleImage {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
 
+    /** Legacy external URL from before images were uploaded as files; still served as-is when a
+     *  row predates the upload feature and has no {@link #imageData}. */
     @Column(name = "image_url")
     private String imageUrl;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "image_data")
+    private byte[] imageData;
 
     public Long getId() {
         return id;
@@ -42,5 +50,21 @@ public class VehicleImage {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public byte[] getImageData() {
+        return imageData;
+    }
+
+    public void setImageData(byte[] imageData) {
+        this.imageData = imageData;
     }
 }

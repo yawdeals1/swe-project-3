@@ -74,3 +74,30 @@ export async function logoutAction(): Promise<void> {
   store.delete(SESSION_COOKIE);
   redirect("/login");
 }
+
+export async function requestPasswordResetAction(formData: FormData): Promise<void> {
+  const email = String(formData.get("email") ?? "");
+
+  try {
+    await backendFetch("/auth/password-reset/request", { method: "POST", body: { email } });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
+    redirect(`/forgot-password?error=${encodeURIComponent(message)}`);
+  }
+
+  redirect("/login?pending=reset");
+}
+
+export async function confirmPasswordResetAction(formData: FormData): Promise<void> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+
+  try {
+    await backendFetch("/auth/password-reset/confirm", { method: "POST", body: { token, password } });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "This reset link is invalid or has expired.";
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=${encodeURIComponent(message)}`);
+  }
+
+  redirect("/login?verified=reset");
+}

@@ -1,20 +1,20 @@
 const STYLES: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  CONFIRMED: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
-  ONGOING: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
-  COMPLETED: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
-  CANCELLED: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  AVAILABLE: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
-  RENTED: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
-  MAINTENANCE: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  ACTIVE: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
-  SUSPENDED: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
+  PENDING: "bg-primary/12 text-primary",
+  CONFIRMED: "bg-primary-container/20 text-primary-container",
+  ONGOING: "bg-tertiary-container/30 text-on-tertiary-container",
+  COMPLETED: "bg-tertiary/12 text-tertiary",
+  CANCELLED: "bg-surface-variant text-on-surface-variant",
+  AVAILABLE: "bg-tertiary/12 text-tertiary",
+  RENTED: "bg-primary-container/20 text-primary-container",
+  MAINTENANCE: "bg-error/12 text-error",
+  ACTIVE: "bg-tertiary/12 text-tertiary",
+  SUSPENDED: "bg-error/12 text-error",
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const style = STYLES[status] ?? "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+  const style = STYLES[status] ?? "bg-surface-variant text-on-surface-variant";
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-label-caps uppercase ${style}`}>
       {status}
     </span>
   );

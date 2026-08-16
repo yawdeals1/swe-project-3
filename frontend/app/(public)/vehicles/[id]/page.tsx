@@ -2,12 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApiError, backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
-import { createBookingAction } from "@/lib/actions/booking";
 import { Banner } from "@/components/Banner";
-import { StatusBadge } from "@/components/StatusBadge";
-import { CategoryIcon } from "@/components/Icon";
+import { CategoryIcon, UiIcon } from "@/components/Icon";
+import { BookingWidget } from "@/components/BookingWidget";
 import { formatCurrency } from "@/lib/format";
 import type { VehicleResponse } from "@/lib/types";
+
+const STATUS_LABEL: Record<string, string> = {
+  AVAILABLE: "Available Now",
+  RENTED: "Currently Rented",
+  MAINTENANCE: "In Maintenance",
+};
 
 export default async function VehicleDetailPage({
   params,
@@ -30,76 +35,105 @@ export default async function VehicleDetailPage({
   }
 
   const session = await getSession();
+  const images = vehicle.imageUrls.slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <Banner error={error} />
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <CategoryIcon category={vehicle.category} size={36} />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {vehicle.make} {vehicle.model}
-            </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {vehicle.year} &middot; {vehicle.category} &middot; Plate {vehicle.plateNumber}
-            </p>
-          </div>
+    <main className="mx-auto flex w-full max-w-7xl flex-col items-start gap-8 px-margin-mobile py-density-public md:px-margin-desktop lg:flex-row">
+      <div className="flex w-full flex-col gap-density-public lg:w-2/3">
+        {error && <Banner error={error} />}
+
+        <div className="flex items-center gap-2 text-body-sm text-secondary">
+          <Link href="/vehicles" className="transition-colors hover:text-primary">
+            Browse
+          </Link>
+          <UiIcon name="chevron_right" size={16} />
+          <span className="text-on-surface">
+            {vehicle.make} {vehicle.model} ({vehicle.year})
+          </span>
         </div>
-        <StatusBadge status={vehicle.status} />
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-tertiary/10 px-3 py-1 text-label-caps text-tertiary uppercase">
+              {STATUS_LABEL[vehicle.status] ?? vehicle.status}
+            </span>
+          </div>
+          <h1 className="text-headline-xl text-on-surface">
+            {vehicle.make} {vehicle.model}
+          </h1>
+          <p className="text-body-lg text-secondary">
+            {vehicle.year} &middot; {vehicle.category} &middot; Plate {vehicle.plateNumber}
+          </p>
+        </div>
+
+        {images.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+            <div className="relative h-64 overflow-hidden rounded-xl shadow-sm md:col-span-8 md:row-span-2 md:h-[500px]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- vehicle photo URLs are admin-entered and arbitrary */}
+              <img src={images[0]} alt={`${vehicle.make} ${vehicle.model}`} className="h-full w-full object-cover" />
+            </div>
+            {images.slice(1).map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element -- vehicle photo URLs are admin-entered and arbitrary
+              <img
+                key={i}
+                src={src}
+                alt={`${vehicle.make} ${vehicle.model} view ${i + 2}`}
+                className="h-32 w-full rounded-xl object-cover shadow-sm md:col-span-4 md:h-[242px]"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-64 w-full items-center justify-center rounded-xl bg-surface-container text-on-surface-variant md:h-[400px]">
+            <CategoryIcon category={vehicle.category} size={64} />
+          </div>
+        )}
+
+        <div className="mt-4 rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm">
+          <h2 className="border-b border-outline-variant/30 pb-4 text-headline-md text-on-surface">Specifications</h2>
+          <dl className="mt-4 flex flex-col">
+            {[
+              { label: "Make", value: vehicle.make },
+              { label: "Model", value: vehicle.model },
+              { label: "Year", value: String(vehicle.year) },
+              { label: "Category", value: vehicle.category },
+              { label: "Plate Number", value: vehicle.plateNumber },
+            ].map((row, i, arr) => (
+              <div key={row.label} className={`flex items-center justify-between py-2 ${i < arr.length - 1 ? "border-b border-outline-variant/10" : ""}`}>
+                <dt className="text-body-md text-secondary">{row.label}</dt>
+                <dd className="font-mono text-numeric-data text-on-surface">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </div>
 
-      <p className="mb-8 text-lg font-medium">
-        {formatCurrency(vehicle.dailyRate)} <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/ day</span>
-      </p>
-
-      {!session && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          <Link href="/login" className="font-medium text-zinc-950 dark:text-zinc-50">
-            Log in
-          </Link>{" "}
-          to book this vehicle.
-        </p>
-      )}
-
-      {session && session.user.role === "CUSTOMER" && (
-        <form action={createBookingAction} className="flex flex-col gap-4 rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
-          <input type="hidden" name="vehicleId" value={vehicle.id} />
-          <h2 className="font-medium">Request this vehicle</h2>
-          <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1 text-sm">
-              Start date
-              <input
-                type="date"
-                name="startDate"
-                required
-                className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-sm">
-              End date
-              <input
-                type="date"
-                name="endDate"
-                required
-                className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </label>
+      <div className="flex w-full flex-col gap-4 lg:sticky lg:top-[100px] lg:w-1/3">
+        {!session && (
+          <div className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 text-center shadow-sm">
+            <p className="mb-4 text-body-md text-on-surface-variant">
+              <Link href="/login" className="font-medium text-primary hover:underline">
+                Log in
+              </Link>{" "}
+              to book this vehicle.
+            </p>
+            <span className="font-mono text-headline-lg text-on-surface">{formatCurrency(vehicle.dailyRate)}</span>
+            <span className="ml-1 text-body-md text-secondary">/ day</span>
           </div>
-          <button
-            type="submit"
-            className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
-          >
-            Submit booking request
-          </button>
-        </form>
-      )}
+        )}
 
-      {session && session.user.role !== "CUSTOMER" && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Only customer accounts can request bookings.
-        </p>
-      )}
-    </div>
+        {session && session.user.role === "CUSTOMER" && <BookingWidget vehicleId={vehicle.id} dailyRate={vehicle.dailyRate} />}
+
+        {session && session.user.role !== "CUSTOMER" && (
+          <div className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 text-center text-body-md text-on-surface-variant shadow-sm">
+            Only customer accounts can request bookings.
+          </div>
+        )}
+
+        <div className="flex items-center justify-center gap-2 p-4 text-body-sm text-secondary">
+          <UiIcon name="shield" className="text-tertiary" />
+          All trips covered by Carvo Protection Plan
+        </div>
+      </div>
+    </main>
   );
 }

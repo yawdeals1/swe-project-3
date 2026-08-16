@@ -30,8 +30,8 @@ export default async function EditVehiclePage({
   const branches = await backendFetch<BranchResponse[]>("/admin/branches", { token: session!.token });
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">
+    <div className="mx-auto max-w-2xl p-density-admin md:p-gutter">
+      <h1 className="mb-6 text-headline-lg text-on-surface">
         Edit {vehicle.make} {vehicle.model}
       </h1>
       <Banner error={error} />

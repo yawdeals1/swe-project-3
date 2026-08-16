@@ -2,6 +2,8 @@ package com.carvo.api.service;
 
 import com.carvo.api.dto.auth.AuthResponse;
 import com.carvo.api.dto.auth.LoginRequest;
+import com.carvo.api.dto.auth.PasswordResetConfirmRequest;
+import com.carvo.api.dto.auth.PasswordResetRequest;
 import com.carvo.api.dto.auth.RegisterRequest;
 import com.carvo.api.dto.common.UserSummary;
 import com.carvo.api.entity.User;
@@ -66,5 +68,13 @@ public class AuthService {
         user = userRepository.save(user);
 
         return AuthResponse.authenticated(result.token(), UserSummary.from(user));
+    }
+
+    public void requestPasswordReset(PasswordResetRequest request) {
+        deploroAuthClient.requestPasswordReset(request.email());
+    }
+
+    public void confirmPasswordReset(PasswordResetConfirmRequest request) {
+        deploroAuthClient.resetPassword(request.token(), request.password());
     }
 }

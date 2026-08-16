@@ -18,12 +18,15 @@ export default async function AdminVehiclesPage({
   const vehicles = await backendFetch<VehicleResponse[]>("/vehicles", { token: session!.token });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Fleet</h1>
+    <div className="p-density-admin md:p-gutter">
+      <div className="mb-gutter flex items-end justify-between">
+        <div>
+          <h1 className="text-headline-lg text-on-surface">Fleet</h1>
+          <p className="mt-1 text-body-sm text-secondary">Manage every vehicle in the Carvo fleet.</p>
+        </div>
         <Link
           href="/admin/vehicles/new"
-          className="rounded-full bg-zinc-950 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+          className="rounded-lg bg-primary px-5 py-2 text-body-sm font-medium text-on-primary transition-colors hover:bg-primary-container"
         >
           Add vehicle
         </Link>
@@ -32,19 +35,22 @@ export default async function AdminVehiclesPage({
       <Banner error={error} success={success} />
 
       {vehicles.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No vehicles in the fleet yet.</p>
+        <p className="rounded-lg border border-whisper bg-surface p-8 text-center text-body-sm text-on-surface-variant">
+          No vehicles in the fleet yet.
+        </p>
       ) : (
-        <div className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <div className="flex flex-col divide-y divide-whisper rounded-lg border border-whisper bg-surface">
           {vehicles.map((vehicle) => (
             <div key={vehicle.id} className="flex items-center justify-between gap-4 px-4 py-3">
               <div className="flex items-center gap-3">
                 <CategoryIcon category={vehicle.category} size={24} />
                 <div>
-                  <p className="font-medium">
+                  <p className="font-medium text-on-surface">
                     {vehicle.make} {vehicle.model} ({vehicle.year})
                   </p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {vehicle.plateNumber} &middot; {vehicle.category} &middot; {formatCurrency(vehicle.dailyRate)}/day
+                  <p className="text-body-sm text-on-surface-variant">
+                    <span className="font-mono">{vehicle.plateNumber}</span> &middot; {vehicle.category} &middot;{" "}
+                    <span className="font-mono">{formatCurrency(vehicle.dailyRate)}</span>/day
                   </p>
                 </div>
               </div>
@@ -52,7 +58,7 @@ export default async function AdminVehiclesPage({
                 <StatusBadge status={vehicle.status} />
                 <Link
                   href={`/admin/vehicles/${vehicle.id}/edit`}
-                  className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  className="rounded-lg border border-outline-variant px-4 py-1.5 text-body-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-variant"
                 >
                   Edit
                 </Link>
@@ -60,7 +66,7 @@ export default async function AdminVehiclesPage({
                   <input type="hidden" name="id" value={vehicle.id} />
                   <button
                     type="submit"
-                    className="rounded-full border border-red-300 px-4 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+                    className="rounded-lg border border-error px-4 py-1.5 text-body-sm font-medium text-error transition-colors hover:bg-error-container hover:text-on-error-container"
                   >
                     Remove
                   </button>

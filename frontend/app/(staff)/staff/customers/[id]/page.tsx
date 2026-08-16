@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ApiError, backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { StatusBadge } from "@/components/StatusBadge";
+import { UiIcon } from "@/components/Icon";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { BookingResponse, UserSummary } from "@/lib/types";
 
@@ -30,37 +31,43 @@ export default async function StaffCustomerHistoryPage({
   const sorted = [...bookings].sort((a, b) => b.startDate.localeCompare(a.startDate));
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <Link href="/staff/customers" className="mb-6 inline-block text-sm text-zinc-500 hover:underline dark:text-zinc-400">
-        &larr; Back to customer lookup
+    <div className="p-density-admin md:p-gutter">
+      <Link
+        href="/staff/customers"
+        className="mb-6 flex w-fit items-center gap-2 text-body-sm text-secondary transition-colors hover:text-primary"
+      >
+        <UiIcon name="arrow_back" size={18} />
+        Back to customer lookup
       </Link>
 
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{customer.name}</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="text-headline-lg text-on-surface">{customer.name}</h1>
+          <p className="text-body-sm text-on-surface-variant">
             {customer.email} {customer.phone ? `· ${customer.phone}` : ""}
           </p>
         </div>
         <StatusBadge status={customer.status} />
       </div>
 
-      <h2 className="mb-3 font-medium">Booking &amp; rental history</h2>
+      <h2 className="mb-3 text-headline-md text-on-surface">Booking &amp; rental history</h2>
       {sorted.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">This customer has no bookings yet.</p>
+        <p className="rounded-lg border border-whisper bg-surface p-8 text-center text-body-sm text-on-surface-variant">
+          This customer has no bookings yet.
+        </p>
       ) : (
-        <div className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <div className="flex flex-col divide-y divide-whisper rounded-lg border border-whisper bg-surface">
           {sorted.map((booking) => (
             <Link
               key={booking.id}
               href={`/staff/bookings/${booking.id}`}
-              className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+              className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-surface-container-low"
             >
               <div>
-                <p className="font-medium">{booking.vehicleLabel}</p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="font-medium text-on-surface">{booking.vehicleLabel}</p>
+                <p className="text-body-sm text-on-surface-variant">
                   {formatDate(booking.startDate)} &ndash; {formatDate(booking.endDate)} &middot;{" "}
-                  {formatCurrency(booking.totalAmount)}
+                  <span className="font-mono">{formatCurrency(booking.totalAmount)}</span>
                 </p>
               </div>
               <StatusBadge status={booking.status} />

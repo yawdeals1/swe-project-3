@@ -18,23 +18,21 @@ export default async function AdminBookingsPage({
   });
 
   const sorted = [...bookings].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const totalRevenue = bookings
-      .filter((b) => b.status === "COMPLETED")
-      .reduce((sum, b) => sum + b.totalAmount, 0);
+  const totalRevenue = bookings.filter((b) => b.status === "COMPLETED").reduce((sum, b) => sum + b.totalAmount, 0);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Completed revenue shown: {formatCurrency(totalRevenue)}
+    <div className="p-density-admin md:p-gutter">
+      <div className="mb-gutter flex items-end justify-between">
+        <h1 className="text-headline-lg text-on-surface">Bookings</h1>
+        <p className="text-body-sm text-secondary">
+          Completed revenue: <span className="font-mono text-numeric-data text-on-surface">{formatCurrency(totalRevenue)}</span>
         </p>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2 text-sm">
+      <div className="mb-6 flex flex-wrap gap-2 text-body-sm">
         <a
           href="/admin/bookings"
-          className={`rounded-full px-3 py-1 ${!status ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-black" : "border border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"}`}
+          className={`rounded-full px-3 py-1 ${!status ? "bg-primary text-on-primary" : "border border-outline-variant text-on-surface-variant hover:bg-surface-variant"}`}
         >
           All
         </a>
@@ -42,7 +40,7 @@ export default async function AdminBookingsPage({
           <a
             key={s}
             href={`/admin/bookings?status=${s}`}
-            className={`rounded-full px-3 py-1 ${status === s ? "bg-zinc-950 text-white dark:bg-zinc-50 dark:text-black" : "border border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"}`}
+            className={`rounded-full px-3 py-1 ${status === s ? "bg-primary text-on-primary" : "border border-outline-variant text-on-surface-variant hover:bg-surface-variant"}`}
           >
             {s}
           </a>
@@ -50,18 +48,20 @@ export default async function AdminBookingsPage({
       </div>
 
       {sorted.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No bookings match this filter.</p>
+        <p className="rounded-lg border border-whisper bg-surface p-8 text-center text-body-sm text-on-surface-variant">
+          No bookings match this filter.
+        </p>
       ) : (
-        <div className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <div className="flex flex-col divide-y divide-whisper rounded-lg border border-whisper bg-surface">
           {sorted.map((booking) => (
             <div key={booking.id} className="flex items-center justify-between gap-4 px-4 py-3">
               <div>
-                <p className="font-medium">
+                <p className="font-medium text-on-surface">
                   {booking.vehicleLabel} &middot; {booking.customerName}
                 </p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-body-sm text-on-surface-variant">
                   {formatDate(booking.startDate)} &ndash; {formatDate(booking.endDate)} &middot;{" "}
-                  {formatCurrency(booking.totalAmount)}
+                  <span className="font-mono">{formatCurrency(booking.totalAmount)}</span>
                 </p>
               </div>
               <StatusBadge status={booking.status} />

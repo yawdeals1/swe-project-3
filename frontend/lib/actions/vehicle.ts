@@ -2,16 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, backendFetch } from "../backend";
+import { ApiError, backendFetch, backendUpload } from "../backend";
 import { getSession } from "../session";
 import type { VehicleResponse } from "../types";
 
 function parseVehicleForm(formData: FormData) {
-  const imageUrlsRaw = String(formData.get("imageUrls") ?? "");
-  const imageUrls = imageUrlsRaw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
   const branchIdRaw = formData.get("branchId");
 
   return {
@@ -22,9 +17,22 @@ function parseVehicleForm(formData: FormData) {
     plateNumber: String(formData.get("plateNumber") ?? ""),
     dailyRate: Number(formData.get("dailyRate")),
     branchId: branchIdRaw ? Number(branchIdRaw) : null,
-    imageUrls,
     status: formData.get("status") ? String(formData.get("status")) : null,
   };
+}
+
+function newImageFiles(formData: FormData): File[] {
+  return formData
+      .getAll("images")
+      .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+async function uploadImages(vehicleId: number, files: File[], token: string) {
+  for (const file of files) {
+    const body = new FormData();
+    body.set("file", file);
+    await backendUpload(`/vehicles/${vehicleId}/images`, body, { token });
+  }
 }
 
 export async function createVehicleAction(formData: FormData): Promise<void> {
@@ -33,8 +41,9 @@ export async function createVehicleAction(formData: FormData): Promise<void> {
     redirect("/login");
   }
 
+  let vehicle: VehicleResponse;
   try {
-    await backendFetch<VehicleResponse>("/vehicles", {
+    vehicle = await backendFetch<VehicleResponse>("/vehicles", {
       method: "POST",
       token: session.token,
       body: parseVehicleForm(formData),
@@ -42,6 +51,14 @@ export async function createVehicleAction(formData: FormData): Promise<void> {
   } catch (e) {
     const message = e instanceof ApiError ? e.message : "Could not create this vehicle.";
     redirect(`/admin/vehicles/new?error=${encodeURIComponent(message)}`);
+  }
+
+  try {
+    await uploadImages(vehicle.id, newImageFiles(formData), session.token);
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Vehicle was created, but a photo failed to upload.";
+    revalidatePath("/admin/vehicles");
+    redirect(`/admin/vehicles/${vehicle.id}/edit?error=${encodeURIComponent(message)}`);
   }
 
   revalidatePath("/admin/vehicles");
@@ -66,8 +83,42 @@ export async function updateVehicleAction(formData: FormData): Promise<void> {
     redirect(`/admin/vehicles/${id}/edit?error=${encodeURIComponent(message)}`);
   }
 
+  try {
+    for (const imageId of formData.getAll("removeImageIds")) {
+      await backendFetch(`/vehicles/${id}/images/${imageId}`, { method: "DELETE", token: session.token });
+    }
+    await uploadImages(id, newImageFiles(formData), session.token);
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Vehicle was updated, but its photos could not be.";
+    revalidatePath("/admin/vehicles");
+    redirect(`/admin/vehicles/${id}/edit?error=${encodeURIComponent(message)}`);
+  }
+
   revalidatePath("/admin/vehicles");
   redirect("/admin/vehicles?success=Vehicle%20updated");
+}
+
+export async function updateVehicleStatusAction(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const id = Number(formData.get("id"));
+  const status = String(formData.get("status") ?? "");
+
+  try {
+    await backendFetch<VehicleResponse>(`/vehicles/${id}/status`, {
+      method: "POST",
+      token: session.token,
+      body: { status },
+    });
+  } catch (e) {
+    const message = e instanceof ApiError ? e.message : "Could not update vehicle status.";
+    redirect(`/staff?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/staff");
+  redirect("/staff?success=Vehicle%20status%20updated");
 }
 
 export async function deleteVehicleAction(formData: FormData): Promise<void> {

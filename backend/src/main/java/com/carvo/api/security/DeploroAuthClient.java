@@ -93,6 +93,23 @@ public class DeploroAuthClient {
         return Optional.of(new SessionUser(user.path("id").asText(), user.path("email").asText()));
     }
 
+    /** Always a no-op success from the caller's point of view — Deploro's request-reset endpoint
+     *  is anti-enumeration by design (same {@code {ok:true}} response whether or not the email
+     *  has a confirmed email/password identity) and emails a reset link only when one does. */
+    public void requestPasswordReset(String email) {
+        send("POST", "/auth/" + SLUG + "/email-password/request-reset", Map.of("email", email));
+    }
+
+    /** Resetting revokes every existing session for the account (FR-1.5's own security
+     *  benefit) but does not sign the caller back in — the frontend still routes them to login. */
+    public void resetPassword(String token, String newPassword) {
+        HttpResponse<String> response =
+                send("POST", "/auth/" + SLUG + "/email-password/reset", Map.of("token", token, "password", newPassword));
+        if (response.statusCode() != 200) {
+            throw new BadRequestException("This reset link is invalid or has expired. Request a new one.");
+        }
+    }
+
     private Optional<String> extractSessionToken(HttpResponse<String> response) {
         String prefix = SESSION_COOKIE_NAME + "=";
         return response.headers().allValues("set-cookie").stream()
