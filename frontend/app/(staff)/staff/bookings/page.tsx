@@ -47,6 +47,7 @@ export default async function StaffBookingsPage({
         <Banner error={error} success={success} />
 
         <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface shadow-sm shadow-black/5">
+          <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead className="border-b border-outline-variant bg-surface-container-low">
               <tr className="text-label-caps text-on-surface-variant">
@@ -117,6 +118,7 @@ export default async function StaffBookingsPage({
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">

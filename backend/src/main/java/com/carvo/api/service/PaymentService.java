@@ -11,6 +11,7 @@ import com.carvo.api.exception.ConflictException;
 import com.carvo.api.exception.NotFoundException;
 import com.carvo.api.repository.PaymentRepository;
 import com.carvo.api.security.CarvoUserPrincipal;
+import java.time.Instant;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -41,7 +42,22 @@ public class PaymentService {
         payment.setBooking(booking);
         payment.setAmount(booking.getTotalAmount());
         payment.setMethod(request.method());
+        return PaymentResponse.from(paymentRepository.save(payment));
+    }
+
+    /**
+     * Staff-only confirmation that money was actually received. Only after this does the
+     * payment count toward revenue ({@link PaymentRepository#sumCompletedRevenue()}) and only
+     * after this can the vehicle be checked out ({@link CheckRecordService#create}).
+     */
+    public PaymentResponse verify(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new NotFoundException("Payment not found"));
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new ConflictException("Only a pending payment can be verified.");
+        }
         payment.setStatus(PaymentStatus.COMPLETED);
+        payment.setPaidAt(Instant.now());
         return PaymentResponse.from(paymentRepository.save(payment));
     }
 

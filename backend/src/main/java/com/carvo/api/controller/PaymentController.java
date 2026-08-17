@@ -40,4 +40,10 @@ public class PaymentController {
             @PathVariable Long bookingId) {
         return paymentService.getByBooking(principal, bookingId);
     }
+
+    @PostMapping("/{id}/verify")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public PaymentResponse verify(@PathVariable Long id) {
+        return paymentService.verify(id);
+    }
 }
