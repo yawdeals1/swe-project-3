@@ -7,6 +7,21 @@ import type { BranchResponse, VehicleResponse } from "@/lib/types";
 const CATEGORIES = ["SEDAN", "SUV", "HATCHBACK", "PICKUP", "VAN", "LUXURY"];
 const STATUSES = ["AVAILABLE", "RENTED", "MAINTENANCE"];
 
+// The VPS's nginx reverse proxy in front of the app rejects any request over ~1MB with a bare
+// "413 Request Entity Too Large" before it ever reaches Next.js — well under the backend's own
+// 8MB per-file limit (application.yml). Checked client-side so oversized photos get a clear
+// message instead of an opaque failure (or, for the create form, silently losing the whole
+// submission to a raw 413 page).
+const MAX_UPLOAD_BYTES = 1_000_000;
+
+function formatMB(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function tooLargeMessage(file: File): string {
+  return `${file.name} is ${formatMB(file.size)} — please compress or resize it to under 1 MB and try again.`;
+}
+
 function uploadedImageId(url: string): string | null {
   const match = url.match(/\/api\/vehicle-images\/(\d+)$/);
   return match ? match[1] : null;
@@ -18,11 +33,18 @@ interface StagedImage {
   previewUrl: string;
 }
 
+interface RejectedFile {
+  id: string;
+  message: string;
+}
+
 interface UploadingImage {
   id: string;
   file: File;
   previewUrl: string;
   status: "uploading" | "error";
+  message?: string;
+  retryable?: boolean;
 }
 
 function Spinner({ className = "" }: { className?: string }) {
@@ -59,6 +81,9 @@ export function VehicleForm({
   // Files picked before a vehicle exists yet (create form) — these can't upload anywhere until
   // the vehicle is created, so they're staged and sent along with the create submission.
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
+  // Files rejected before staging/upload even started (create form only — the edit form shows
+  // its equivalent rejections inline as error tiles in uploadingImages instead).
+  const [rejectedFiles, setRejectedFiles] = useState<RejectedFile[]>([]);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // The native file input can't have individual files removed from its FileList, so staged
@@ -93,6 +118,11 @@ export function VehicleForm({
       body.set("file", file);
       const res = await fetch(`/api/vehicles/${vehicle!.id}/images`, { method: "POST", body });
       if (!res.ok) {
+        if (res.status === 413) {
+          setUploadingImages((prev) =>
+              prev.map((u) => (u.id === id ? { ...u, status: "error", message: tooLargeMessage(file), retryable: false } : u)));
+          return;
+        }
         throw new Error("Upload failed");
       }
       const data: VehicleResponse = await res.json();
@@ -103,7 +133,8 @@ export function VehicleForm({
         return prev.filter((u) => u.id !== id);
       });
     } catch {
-      setUploadingImages((prev) => prev.map((u) => (u.id === id ? { ...u, status: "error" } : u)));
+      setUploadingImages((prev) =>
+          prev.map((u) => (u.id === id ? { ...u, status: "error", message: "Upload failed. Try again.", retryable: true } : u)));
     }
   }
 
@@ -116,6 +147,20 @@ export function VehicleForm({
       // Upload immediately — the vehicle already exists, so there's somewhere to put these.
       for (const file of picked) {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        if (file.size > MAX_UPLOAD_BYTES) {
+          setUploadingImages((prev) => [
+            ...prev,
+            {
+              id,
+              file,
+              previewUrl: URL.createObjectURL(file),
+              status: "error",
+              message: tooLargeMessage(file),
+              retryable: false,
+            },
+          ]);
+          continue;
+        }
         setUploadingImages((prev) => [
           ...prev,
           { id, file, previewUrl: URL.createObjectURL(file), status: "uploading" },
@@ -123,10 +168,25 @@ export function VehicleForm({
         void uploadImageNow(id, file);
       }
     } else {
-      // No vehicle yet — stage locally and upload once the vehicle is created.
+      // No vehicle yet — stage locally and upload once the vehicle is created. The whole form
+      // submission (all staged files in one request) is just as subject to the proxy's size
+      // limit, so oversized files are rejected up front rather than risking the entire
+      // Add-vehicle submission to a raw 413.
+      const accepted: File[] = [];
+      const rejected: RejectedFile[] = [];
+      for (const file of picked) {
+        if (file.size > MAX_UPLOAD_BYTES) {
+          rejected.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, message: tooLargeMessage(file) });
+        } else {
+          accepted.push(file);
+        }
+      }
+      if (rejected.length > 0) {
+        setRejectedFiles((prev) => [...prev, ...rejected]);
+      }
       setStagedImages((prev) => [
         ...prev,
-        ...picked.map((file) => ({
+        ...accepted.map((file) => ({
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
           previewUrl: URL.createObjectURL(file),
@@ -138,8 +198,12 @@ export function VehicleForm({
   function retryUpload(id: string) {
     const target = uploadingImages.find((u) => u.id === id);
     if (!target) return;
-    setUploadingImages((prev) => prev.map((u) => (u.id === id ? { ...u, status: "uploading" } : u)));
+    setUploadingImages((prev) => prev.map((u) => (u.id === id ? { ...u, status: "uploading", message: undefined } : u)));
     void uploadImageNow(id, target.file);
+  }
+
+  function dismissRejectedFile(id: string) {
+    setRejectedFiles((prev) => prev.filter((r) => r.id !== id));
   }
 
   function dismissFailedUpload(id: string) {
@@ -308,7 +372,7 @@ export function VehicleForm({
                 );
               })}
               {uploadingImages.map((u) => (
-                <div key={u.id} className="relative h-20 w-20">
+                <div key={u.id} className="relative h-20 w-20" title={u.message}>
                   {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a fixed image host */}
                   <img
                     src={u.previewUrl}
@@ -321,14 +385,16 @@ export function VehicleForm({
                     </div>
                   ) : (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => retryUpload(u.id)}
-                        aria-label="Retry upload"
-                        className="absolute inset-0 flex items-center justify-center rounded-lg bg-error-container/85 text-label-caps font-medium text-on-error-container"
-                      >
-                        Retry
-                      </button>
+                      {u.retryable && (
+                        <button
+                          type="button"
+                          onClick={() => retryUpload(u.id)}
+                          aria-label="Retry upload"
+                          className="absolute inset-0 flex items-center justify-center rounded-lg bg-error-container/85 text-label-caps font-medium text-on-error-container"
+                        >
+                          Retry
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => dismissFailedUpload(u.id)}
@@ -342,6 +408,15 @@ export function VehicleForm({
                 </div>
               ))}
             </div>
+          )}
+          {uploadingImages.some((u) => u.status === "error") && (
+            <ul className="flex flex-col gap-0.5 text-label-caps text-error">
+              {uploadingImages
+                  .filter((u) => u.status === "error")
+                  .map((u) => (
+                    <li key={u.id}>{u.message}</li>
+                  ))}
+            </ul>
           )}
           <input
             type="file"
@@ -363,6 +438,23 @@ export function VehicleForm({
             className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-body-sm text-on-surface outline-none file:mr-3 file:rounded-md file:border-0 file:bg-secondary-container file:px-3 file:py-1.5 file:text-on-secondary-container focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-60"
           />
           <p className="text-label-caps text-on-surface-variant/70">Photos upload once you add the vehicle below.</p>
+          {rejectedFiles.length > 0 && (
+            <ul className="flex flex-col gap-0.5 text-label-caps text-error">
+              {rejectedFiles.map((r) => (
+                <li key={r.id} className="flex items-start gap-1.5">
+                  <span className="flex-1">{r.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => dismissRejectedFile(r.id)}
+                    aria-label="Dismiss"
+                    className="shrink-0 text-on-surface-variant hover:text-on-surface"
+                  >
+                    <UiIcon name="close" size={12} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {/* Hidden field actually submitted as "images"; kept in sync with stagedImages above. */}
           <input ref={uploadInputRef} type="file" name="images" multiple className="hidden" aria-hidden tabIndex={-1} />
           {stagedImages.length > 0 && (
