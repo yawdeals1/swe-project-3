@@ -4,16 +4,19 @@ import com.carvo.api.dto.checkrecord.CheckRecordResponse;
 import com.carvo.api.dto.checkrecord.CreateCheckRecordRequest;
 import com.carvo.api.entity.Booking;
 import com.carvo.api.entity.CheckRecord;
+import com.carvo.api.entity.Payment;
 import com.carvo.api.entity.User;
 import com.carvo.api.entity.Vehicle;
 import com.carvo.api.entity.enums.BookingStatus;
 import com.carvo.api.entity.enums.CheckType;
+import com.carvo.api.entity.enums.PaymentStatus;
 import com.carvo.api.entity.enums.Role;
 import com.carvo.api.entity.enums.VehicleStatus;
 import com.carvo.api.exception.BadRequestException;
 import com.carvo.api.exception.ConflictException;
 import com.carvo.api.exception.NotFoundException;
 import com.carvo.api.repository.CheckRecordRepository;
+import com.carvo.api.repository.PaymentRepository;
 import com.carvo.api.repository.UserRepository;
 import com.carvo.api.repository.VehicleRepository;
 import com.carvo.api.security.CarvoUserPrincipal;
@@ -30,16 +33,19 @@ public class CheckRecordService {
     private final BookingService bookingService;
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
 
     public CheckRecordService(
             CheckRecordRepository checkRecordRepository,
             BookingService bookingService,
             VehicleRepository vehicleRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            PaymentRepository paymentRepository) {
         this.checkRecordRepository = checkRecordRepository;
         this.bookingService = bookingService;
         this.vehicleRepository = vehicleRepository;
         this.userRepository = userRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     @Transactional
@@ -57,6 +63,11 @@ public class CheckRecordService {
         if (type == CheckType.CHECK_OUT) {
             if (booking.getStatus() != BookingStatus.CONFIRMED) {
                 throw new ConflictException("Vehicle can only be checked out for a confirmed booking.");
+            }
+            Payment payment = paymentRepository.findByBookingId(booking.getId()).orElse(null);
+            if (payment == null || payment.getStatus() != PaymentStatus.COMPLETED) {
+                throw new ConflictException(
+                        "Vehicle cannot be checked out until staff has verified payment for this booking.");
             }
             booking.setStatus(BookingStatus.ONGOING);
             vehicle.setStatus(VehicleStatus.RENTED);

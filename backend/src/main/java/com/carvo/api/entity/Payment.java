@@ -30,10 +30,10 @@ public class Payment {
     private String method;
 
     @Enumerated(EnumType.STRING)
-    private PaymentStatus status = PaymentStatus.COMPLETED;
+    private PaymentStatus status = PaymentStatus.PENDING;
 
     @Column(name = "paid_at")
-    private Instant paidAt = Instant.now();
+    private Instant paidAt;
 
     public Long getId() {
         return id;
@@ -73,5 +73,9 @@ public class Payment {
 
     public Instant getPaidAt() {
         return paidAt;
+    }
+
+    public void setPaidAt(Instant paidAt) {
+        this.paidAt = paidAt;
     }
 }

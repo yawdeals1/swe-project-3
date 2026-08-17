@@ -149,7 +149,13 @@ export default async function CustomerBookingDetailPage({
               <span className="font-mono text-[24px] leading-none font-bold text-primary">{formatCurrency(booking.totalAmount)}</span>
             </div>
             <p className="relative z-10 text-body-sm text-secondary">
-              {payment ? `Paid via ${payment.method}` : "Not paid yet"}
+              {payment
+                ? payment.status === "COMPLETED"
+                  ? `Paid via ${payment.method}`
+                  : payment.status === "FAILED"
+                    ? "Payment failed — please try again"
+                    : `Payment submitted via ${payment.method} — awaiting staff verification`
+                : "Not paid yet"}
             </p>
 
             {booking.status === "CONFIRMED" && !payment && (

@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { ApiError, backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { checkInAction, checkOutAction } from "@/lib/actions/checkrecord";
+import { verifyPaymentAction } from "@/lib/actions/payment";
 import { Banner } from "@/components/Banner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CategoryIcon, UiIcon } from "@/components/Icon";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
-import type { BookingResponse, CheckRecordResponse, VehicleResponse } from "@/lib/types";
+import type { BookingResponse, CheckRecordResponse, PaymentResponse, VehicleResponse } from "@/lib/types";
 
 export default async function StaffBookingDetailPage({
   params,
@@ -30,12 +31,15 @@ export default async function StaffBookingDetailPage({
     throw e;
   }
 
-  const [checkRecords, vehicle] = await Promise.all([
+  const [checkRecords, vehicle, payment] = await Promise.all([
     backendFetch<CheckRecordResponse[]>(`/bookings/${id}/check-records`, { token: session!.token }),
     backendFetch<VehicleResponse>(`/vehicles/${booking.vehicleId}`).catch(() => null),
+    backendFetch<PaymentResponse>(`/payments/booking/${id}`, { token: session!.token }).catch(() => null),
   ]);
 
   const action = booking.status === "CONFIRMED" ? "check-out" : booking.status === "ONGOING" ? "check-in" : null;
+  const paymentVerified = payment?.status === "COMPLETED";
+  const checkoutBlockedByPayment = action === "check-out" && !paymentVerified;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-gutter md:p-density-public">
@@ -66,7 +70,36 @@ export default async function StaffBookingDetailPage({
 
       <div className="grid grid-cols-1 items-start gap-6 pb-12 lg:grid-cols-12">
         <div className="flex flex-col gap-6 lg:col-span-8">
-          {action && (
+          {checkoutBlockedByPayment && (
+            <div className="flex items-start gap-3 rounded-lg border border-error/30 bg-error-container/30 p-4 text-on-error-container">
+              <UiIcon name="cancel" className="mt-0.5" />
+              <div className="flex flex-1 flex-col gap-3">
+                <div>
+                  <p className="text-body-md font-medium">Checkout is blocked until payment is verified</p>
+                  <p className="mt-1 text-body-sm">
+                    {payment
+                      ? `The customer submitted payment via ${payment.method}, but it has not been verified yet. Confirm the funds were actually received before releasing the vehicle.`
+                      : "The customer has not submitted payment for this booking yet. The vehicle cannot be checked out until payment is received and verified."}
+                  </p>
+                </div>
+                {payment && (
+                  <form action={verifyPaymentAction} className="flex">
+                    <input type="hidden" name="paymentId" value={payment.id} />
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button
+                      type="submit"
+                      className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-body-sm font-medium text-on-error transition-colors hover:opacity-90"
+                    >
+                      <UiIcon name="check_circle" size={16} />
+                      Verify payment received
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
+
+          {action && !checkoutBlockedByPayment && (
             <form
               action={action === "check-out" ? checkOutAction : checkInAction}
               className="flex flex-col divide-y divide-outline-variant rounded-lg border border-outline-variant bg-surface-container-lowest"
