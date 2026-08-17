@@ -3,6 +3,7 @@ import { logoutAction } from "@/lib/actions/auth";
 import { getSession, roleHome } from "@/lib/session";
 import { UiIcon } from "@/components/Icon";
 import { TopNavLinks } from "@/components/TopNavLinks";
+import { MobileNav } from "@/components/MobileNav";
 
 export async function TopNav() {
   const session = await getSession();
@@ -20,10 +21,13 @@ export async function TopNav() {
   return (
     <header className="sticky top-0 z-50 w-full bg-surface shadow-sm">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-gutter py-4">
-        <Link href={session ? roleHome(session.user.role) : "/"} className="flex items-center gap-2 text-headline-md font-bold text-primary">
-          <UiIcon name="directions_car" />
-          Carvo
-        </Link>
+        <div className="flex items-center gap-2">
+          <MobileNav links={links} userName={session?.user.name} logoutAction={session ? logoutAction : undefined} />
+          <Link href={session ? roleHome(session.user.role) : "/"} className="flex items-center gap-2 text-headline-md font-bold text-primary">
+            <UiIcon name="directions_car" />
+            Carvo
+          </Link>
+        </div>
 
         <nav className="hidden items-center gap-8 md:flex">
           <TopNavLinks links={links} />

@@ -54,9 +54,9 @@ export default async function AdminBookingsPage({
       ) : (
         <div className="flex flex-col divide-y divide-whisper rounded-lg border border-whisper bg-surface">
           {sorted.map((booking) => (
-            <div key={booking.id} className="flex items-center justify-between gap-4 px-4 py-3">
-              <div>
-                <p className="font-medium text-on-surface">
+            <div key={booking.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-on-surface">
                   {booking.vehicleLabel} &middot; {booking.customerName}
                 </p>
                 <p className="text-body-sm text-on-surface-variant">

@@ -28,12 +28,12 @@ export default async function AdminStaffPage({
           <p className="px-4 py-3 text-body-sm text-on-surface-variant">No staff or admin accounts yet.</p>
         ) : (
           staff.map((member) => (
-            <div key={member.id} className="flex items-center justify-between gap-4 px-4 py-3">
-              <div>
+            <div key={member.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="font-medium text-on-surface">{member.name}</p>
-                <p className="text-body-sm text-on-surface-variant">{member.email}</p>
+                <p className="truncate text-body-sm text-on-surface-variant">{member.email}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-label-caps text-on-secondary-container">
                   {member.role}
                 </span>

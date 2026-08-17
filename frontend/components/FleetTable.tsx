@@ -19,16 +19,16 @@ export function FleetTable({ vehicles }: { vehicles: VehicleResponse[] }) {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-whisper bg-surface shadow-sm">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-headline-md text-on-surface">Fleet Overview</h2>
-        <div className="relative">
+        <div className="relative w-full sm:w-56">
           <UiIcon name="search" size={18} className="absolute top-1/2 left-2 -translate-y-1/2 text-secondary" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search plate or model..."
-            className="w-56 rounded border border-whisper bg-surface py-1.5 pr-3 pl-8 text-body-sm text-on-surface transition-all outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
+            className="w-full rounded border border-whisper bg-surface py-1.5 pr-3 pl-8 text-body-sm text-on-surface transition-all outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container"
           />
         </div>
       </div>

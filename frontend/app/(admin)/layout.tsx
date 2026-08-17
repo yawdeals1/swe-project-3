@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession, roleHome } from "@/lib/session";
 import { Sidebar } from "@/components/Sidebar";
+import { DashboardShell } from "@/components/DashboardShell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -11,9 +12,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect(roleHome(session.user.role));
   }
   return (
-    <div className="flex h-screen overflow-hidden bg-surface">
-      <Sidebar role="ADMIN" />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <DashboardShell brand="Carvo Admin" sidebar={<Sidebar role="ADMIN" />}>
+      {children}
+    </DashboardShell>
   );
 }

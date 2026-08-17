@@ -193,6 +193,11 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
       <path d="M7 13h10M7 17h7" />
     </>
   ),
+  menu: (
+    <>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </>
+  ),
 };
 
 export function UiIcon({
