@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { Banner } from "@/components/Banner";
 import { CategoryIcon, UiIcon } from "@/components/Icon";
 import { BookingWidget } from "@/components/BookingWidget";
+import { VehicleGallery } from "@/components/VehicleGallery";
 import { formatCurrency } from "@/lib/format";
 import type { VehicleResponse } from "@/lib/types";
 
@@ -35,7 +36,6 @@ export default async function VehicleDetailPage({
   }
 
   const session = await getSession();
-  const images = vehicle.imageUrls.slice(0, 3);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col items-start gap-8 px-margin-mobile py-density-public md:px-margin-desktop lg:flex-row">
@@ -66,22 +66,8 @@ export default async function VehicleDetailPage({
           </p>
         </div>
 
-        {images.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-            <div className="relative h-64 overflow-hidden rounded-xl shadow-sm md:col-span-8 md:row-span-2 md:h-[500px]">
-              {/* eslint-disable-next-line @next/next/no-img-element -- vehicle photo URLs are admin-entered and arbitrary */}
-              <img src={images[0]} alt={`${vehicle.make} ${vehicle.model}`} className="h-full w-full object-cover" />
-            </div>
-            {images.slice(1).map((src, i) => (
-              // eslint-disable-next-line @next/next/no-img-element -- vehicle photo URLs are admin-entered and arbitrary
-              <img
-                key={i}
-                src={src}
-                alt={`${vehicle.make} ${vehicle.model} view ${i + 2}`}
-                className="h-32 w-full rounded-xl object-cover shadow-sm md:col-span-4 md:h-[242px]"
-              />
-            ))}
-          </div>
+        {vehicle.imageUrls.length > 0 ? (
+          <VehicleGallery images={vehicle.imageUrls} alt={`${vehicle.make} ${vehicle.model}`} />
         ) : (
           <div className="flex h-64 w-full items-center justify-center rounded-xl bg-surface-container text-on-surface-variant md:h-[400px]">
             <CategoryIcon category={vehicle.category} size={64} />
