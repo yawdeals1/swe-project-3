@@ -18,6 +18,13 @@ interface StagedImage {
   previewUrl: string;
 }
 
+interface UploadingImage {
+  id: string;
+  file: File;
+  previewUrl: string;
+  status: "uploading" | "error";
+}
+
 function Spinner({ className = "" }: { className?: string }) {
   return (
     <span
@@ -43,13 +50,20 @@ export function VehicleForm({
   }, null);
 
   const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
+  // Photos that already exist on the server, for an existing vehicle — the initial set plus
+  // whatever uploadImageNow() has successfully added since.
+  const [photoUrls, setPhotoUrls] = useState<string[]>(vehicle?.imageUrls ?? []);
+  // In-flight/failed uploads for an existing vehicle, keyed by a local id until they land in
+  // photoUrls (or the user gives up on them).
+  const [uploadingImages, setUploadingImages] = useState<UploadingImage[]>([]);
+  // Files picked before a vehicle exists yet (create form) — these can't upload anywhere until
+  // the vehicle is created, so they're staged and sent along with the create submission.
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
-  const pickerInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  // The native file input can't have individual files removed from its FileList, so newly
-  // picked files live in React state (for previews + per-file removal) and get mirrored onto a
-  // hidden input via DataTransfer, which is what actually gets submitted as "images".
+  // The native file input can't have individual files removed from its FileList, so staged
+  // (create-form-only) files live in React state and get mirrored onto a hidden input via
+  // DataTransfer, which is what actually gets submitted as "images".
   useEffect(() => {
     const input = uploadInputRef.current;
     if (!input) return;
@@ -65,14 +79,51 @@ export function VehicleForm({
       for (const staged of stagedImages) {
         URL.revokeObjectURL(staged.previewUrl);
       }
+      for (const uploading of uploadingImages) {
+        URL.revokeObjectURL(uploading.previewUrl);
+      }
     };
-    // Revoke only on unmount, not on every stagedImages change.
+    // Revoke only on unmount, not on every state change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function uploadImageNow(id: string, file: File) {
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch(`/api/vehicles/${vehicle!.id}/images`, { method: "POST", body });
+      if (!res.ok) {
+        throw new Error("Upload failed");
+      }
+      const data: VehicleResponse = await res.json();
+      setPhotoUrls((prev) => Array.from(new Set([...prev, ...data.imageUrls])));
+      setUploadingImages((prev) => {
+        const target = prev.find((u) => u.id === id);
+        if (target) URL.revokeObjectURL(target.previewUrl);
+        return prev.filter((u) => u.id !== id);
+      });
+    } catch {
+      setUploadingImages((prev) => prev.map((u) => (u.id === id ? { ...u, status: "error" } : u)));
+    }
+  }
+
   function handlePickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
-    if (picked.length > 0) {
+    e.target.value = "";
+    if (picked.length === 0) return;
+
+    if (vehicle) {
+      // Upload immediately — the vehicle already exists, so there's somewhere to put these.
+      for (const file of picked) {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        setUploadingImages((prev) => [
+          ...prev,
+          { id, file, previewUrl: URL.createObjectURL(file), status: "uploading" },
+        ]);
+        void uploadImageNow(id, file);
+      }
+    } else {
+      // No vehicle yet — stage locally and upload once the vehicle is created.
       setStagedImages((prev) => [
         ...prev,
         ...picked.map((file) => ({
@@ -82,7 +133,21 @@ export function VehicleForm({
         })),
       ]);
     }
-    e.target.value = "";
+  }
+
+  function retryUpload(id: string) {
+    const target = uploadingImages.find((u) => u.id === id);
+    if (!target) return;
+    setUploadingImages((prev) => prev.map((u) => (u.id === id ? { ...u, status: "uploading" } : u)));
+    void uploadImageNow(id, target.file);
+  }
+
+  function dismissFailedUpload(id: string) {
+    setUploadingImages((prev) => {
+      const target = prev.find((u) => u.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((u) => u.id !== id);
+    });
   }
 
   function removeStagedImage(id: string) {
@@ -97,7 +162,7 @@ export function VehicleForm({
     setRemovedImageIds((prev) => (prev.includes(imageId) ? prev : [...prev, imageId]));
   }
 
-  const visibleExistingImages = (vehicle?.imageUrls ?? []).filter((url) => {
+  const visiblePhotoUrls = photoUrls.filter((url) => {
     const id = uploadedImageId(url);
     return !id || !removedImageIds.includes(id);
   });
@@ -217,75 +282,117 @@ export function VehicleForm({
         )}
       </div>
 
-      {vehicle && visibleExistingImages.length > 0 && (
+      {vehicle ? (
         <div className="flex flex-col gap-2 text-body-sm text-on-surface-variant">
-          Current photos
-          <div className="flex flex-wrap gap-3">
-            {visibleExistingImages.map((url) => {
-              const imageId = uploadedImageId(url);
-              return (
-                <div key={url} className="relative h-20 w-20">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- served through our own proxy/legacy external URLs, not a fixed image host */}
-                  <img src={url} alt="" className="h-20 w-20 rounded-lg border border-outline-variant object-cover" />
-                  {imageId && (
+          Photos
+          {(visiblePhotoUrls.length > 0 || uploadingImages.length > 0) && (
+            <div className="flex flex-wrap gap-3">
+              {visiblePhotoUrls.map((url) => {
+                const imageId = uploadedImageId(url);
+                return (
+                  <div key={url} className="relative h-20 w-20">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- served through our own proxy/legacy external URLs, not a fixed image host */}
+                    <img src={url} alt="" className="h-20 w-20 rounded-lg border border-outline-variant object-cover" />
+                    {imageId && (
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(imageId)}
+                        disabled={pending}
+                        aria-label="Remove photo"
+                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-on-error shadow disabled:opacity-50"
+                      >
+                        <UiIcon name="close" size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {uploadingImages.map((u) => (
+                <div key={u.id} className="relative h-20 w-20">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a fixed image host */}
+                  <img
+                    src={u.previewUrl}
+                    alt=""
+                    className="h-20 w-20 rounded-lg border border-outline-variant object-cover"
+                  />
+                  {u.status === "uploading" ? (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface/70">
+                      <Spinner className="h-5 w-5 text-primary" />
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => retryUpload(u.id)}
+                        aria-label="Retry upload"
+                        className="absolute inset-0 flex items-center justify-center rounded-lg bg-error-container/85 text-label-caps font-medium text-on-error-container"
+                      >
+                        Retry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dismissFailedUpload(u.id)}
+                        aria-label="Remove photo"
+                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-on-error shadow"
+                      >
+                        <UiIcon name="close" size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            onChange={handlePickFiles}
+            className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-body-sm text-on-surface outline-none file:mr-3 file:rounded-md file:border-0 file:bg-secondary-container file:px-3 file:py-1.5 file:text-on-secondary-container focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 text-body-sm text-on-surface-variant">
+          Photos
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            disabled={pending}
+            onChange={handlePickFiles}
+            className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-body-sm text-on-surface outline-none file:mr-3 file:rounded-md file:border-0 file:bg-secondary-container file:px-3 file:py-1.5 file:text-on-secondary-container focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-60"
+          />
+          <p className="text-label-caps text-on-surface-variant/70">Photos upload once you add the vehicle below.</p>
+          {/* Hidden field actually submitted as "images"; kept in sync with stagedImages above. */}
+          <input ref={uploadInputRef} type="file" name="images" multiple className="hidden" aria-hidden tabIndex={-1} />
+          {stagedImages.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {stagedImages.map((staged) => (
+                <div key={staged.id} className="relative h-20 w-20">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a fixed image host */}
+                  <img
+                    src={staged.previewUrl}
+                    alt=""
+                    className="h-20 w-20 rounded-lg border border-outline-variant object-cover"
+                  />
+                  {pending ? (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface/70">
+                      <Spinner className="h-5 w-5 text-primary" />
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => removeExistingImage(imageId)}
-                      disabled={pending}
+                      onClick={() => removeStagedImage(staged.id)}
                       aria-label="Remove photo"
-                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-on-error shadow disabled:opacity-50"
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-on-error shadow"
                     >
                       <UiIcon name="close" size={14} />
                     </button>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-1 text-body-sm text-on-surface-variant">
-        {vehicle ? "Add photos" : "Photos"}
-        <input
-          ref={pickerInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          multiple
-          disabled={pending}
-          onChange={handlePickFiles}
-          className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-body-sm text-on-surface outline-none file:mr-3 file:rounded-md file:border-0 file:bg-secondary-container file:px-3 file:py-1.5 file:text-on-secondary-container focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-60"
-        />
-        {/* Hidden field actually submitted as "images"; kept in sync with stagedImages above. */}
-        <input ref={uploadInputRef} type="file" name="images" multiple className="hidden" aria-hidden tabIndex={-1} />
-      </div>
-
-      {stagedImages.length > 0 && (
-        <div className="flex flex-wrap gap-3">
-          {stagedImages.map((staged) => (
-            <div key={staged.id} className="relative h-20 w-20">
-              {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a fixed image host */}
-              <img
-                src={staged.previewUrl}
-                alt=""
-                className="h-20 w-20 rounded-lg border border-outline-variant object-cover"
-              />
-              {pending ? (
-                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface/70">
-                  <Spinner className="h-5 w-5 text-primary" />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => removeStagedImage(staged.id)}
-                  aria-label="Remove photo"
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-on-error shadow"
-                >
-                  <UiIcon name="close" size={14} />
-                </button>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
