@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { CategoryIcon } from "@/components/Icon";
+import { VehicleImageStrip } from "@/components/VehicleImageStrip";
 import type { VehicleResponse } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -19,19 +20,13 @@ export function VehicleCard({ vehicle, featured = false }: { vehicle: VehicleRes
         featured ? "md:col-span-2" : ""
       }`}
     >
-      <div className={`relative w-full overflow-hidden bg-surface-container ${featured ? "h-64" : "h-48"}`}>
-        {vehicle.imageUrls[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element -- vehicle photo URLs are admin-entered and arbitrary, not restricted to a known image host
-          <img
-            src={vehicle.imageUrls[0]}
-            alt={`${vehicle.make} ${vehicle.model}`}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <CategoryIcon category={vehicle.category} size={48} />
-          </div>
-        )}
+      <div className={`relative w-full ${featured ? "h-64" : "h-48"}`}>
+        <VehicleImageStrip
+          images={vehicle.imageUrls}
+          alt={`${vehicle.make} ${vehicle.model}`}
+          category={vehicle.category}
+          className="h-full w-full"
+        />
         <div
           className={`absolute top-3 right-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-label-caps backdrop-blur-sm ${
             available ? "border border-tertiary/20 bg-tertiary/10 text-tertiary" : "border border-outline-variant/50 bg-surface/80 text-secondary"
