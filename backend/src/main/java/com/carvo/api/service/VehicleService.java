@@ -39,10 +39,18 @@ public class VehicleService {
 
     public List<VehicleResponse> search(String category, BigDecimal minPrice, BigDecimal maxPrice,
             LocalDate startDate, LocalDate endDate) {
+        if (startDate != null && endDate == null) {
+            endDate = startDate;
+        } else if (startDate == null && endDate != null) {
+            startDate = endDate;
+        }
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
             throw new BadRequestException("End date must not be before start date.");
         }
-        return vehicleRepository.search(category, minPrice, maxPrice, startDate, endDate).stream()
+        List<Vehicle> vehicles = startDate == null
+                ? vehicleRepository.searchWithoutDateRange(category, minPrice, maxPrice)
+                : vehicleRepository.searchWithDateRange(category, minPrice, maxPrice, startDate, endDate);
+        return vehicles.stream()
                 .map(v -> toResponse(v))
                 .toList();
     }
