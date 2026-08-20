@@ -3,6 +3,7 @@ package com.carvo.api.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carvo.api.entity.Vehicle;
@@ -12,6 +13,7 @@ import com.carvo.api.exception.NotFoundException;
 import com.carvo.api.repository.BranchRepository;
 import com.carvo.api.repository.VehicleImageRepository;
 import com.carvo.api.repository.VehicleRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,5 +70,45 @@ class VehicleServiceTest {
 
         assertThatThrownBy(() -> vehicleService.updateStatus(99L, "MAINTENANCE"))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void search_withoutDates_usesQueryWithoutDateParameters() {
+        when(vehicleRepository.searchWithoutDateRange("SUV", null, null)).thenReturn(List.of());
+
+        vehicleService.search("SUV", null, null, null, null);
+
+        verify(vehicleRepository).searchWithoutDateRange("SUV", null, null);
+    }
+
+    @Test
+    void search_withDateRange_usesTypedDateQuery() {
+        LocalDate start = LocalDate.of(2026, 8, 21);
+        LocalDate end = LocalDate.of(2026, 8, 25);
+        when(vehicleRepository.searchWithDateRange(null, null, null, start, end)).thenReturn(List.of());
+
+        vehicleService.search(null, null, null, start, end);
+
+        verify(vehicleRepository).searchWithDateRange(null, null, null, start, end);
+    }
+
+    @Test
+    void search_withOnlyStartDate_filtersThatSingleDay() {
+        LocalDate date = LocalDate.of(2026, 8, 21);
+        when(vehicleRepository.searchWithDateRange(null, null, null, date, date)).thenReturn(List.of());
+
+        vehicleService.search(null, null, null, date, null);
+
+        verify(vehicleRepository).searchWithDateRange(null, null, null, date, date);
+    }
+
+    @Test
+    void search_withOnlyEndDate_filtersThatSingleDay() {
+        LocalDate date = LocalDate.of(2026, 8, 25);
+        when(vehicleRepository.searchWithDateRange(null, null, null, date, date)).thenReturn(List.of());
+
+        vehicleService.search(null, null, null, null, date);
+
+        verify(vehicleRepository).searchWithDateRange(null, null, null, date, date);
     }
 }

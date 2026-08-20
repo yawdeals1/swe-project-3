@@ -33,6 +33,7 @@ services:
   backend:
     build:
       context: ./backend
+    restart: unless-stopped
     environment:
       - DATABASE_URL_INTERNAL
       - DATABASE_URL
@@ -53,6 +54,7 @@ services:
   web:
     build:
       context: ./frontend
+    restart: unless-stopped
     environment:
       # server-side only (Next.js Route Handlers proxy through this) — never exposed to the browser
       - BACKEND_INTERNAL_URL=http://backend:8080

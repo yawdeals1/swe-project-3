@@ -15,13 +15,25 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         (:category IS NULL OR v.category = :category)
         AND (:minPrice IS NULL OR v.dailyRate >= :minPrice)
         AND (:maxPrice IS NULL OR v.dailyRate <= :maxPrice)
-        AND (:startDate IS NULL OR :endDate IS NULL OR v.id NOT IN (
-            SELECT b.vehicle.id FROM Booking b
-            WHERE b.status IN (com.carvo.api.entity.enums.BookingStatus.CONFIRMED, com.carvo.api.entity.enums.BookingStatus.ONGOING)
-            AND b.startDate <= :endDate AND b.endDate >= :startDate
-        ))
         """)
-    java.util.List<Vehicle> search(
+    java.util.List<Vehicle> searchWithoutDateRange(
+            @Param("category") String category,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice);
+
+    @Query("""
+        SELECT v FROM Vehicle v WHERE
+        (:category IS NULL OR v.category = :category)
+        AND (:minPrice IS NULL OR v.dailyRate >= :minPrice)
+        AND (:maxPrice IS NULL OR v.dailyRate <= :maxPrice)
+        AND NOT EXISTS (
+            SELECT b.id FROM Booking b
+            WHERE b.vehicle = v
+            AND b.status IN (com.carvo.api.entity.enums.BookingStatus.CONFIRMED, com.carvo.api.entity.enums.BookingStatus.ONGOING)
+            AND b.startDate <= :endDate AND b.endDate >= :startDate
+        )
+        """)
+    java.util.List<Vehicle> searchWithDateRange(
             @Param("category") String category,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
