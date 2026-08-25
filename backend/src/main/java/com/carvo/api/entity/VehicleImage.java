@@ -21,14 +21,18 @@ public class VehicleImage {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicle vehicle;
 
-    /** Legacy external URL from before images were uploaded as files; still served as-is when a
-     *  row predates the upload feature and has no {@link #imageData}. */
+    /** Where the photo actually lives: an absolute, publicly readable Deploro R2 URL that the
+     *  browser fetches directly. Set at upload time for new photos and backfilled for every
+     *  pre-existing row in V5, so this — not {@link #imageData} — is the read path. */
     @Column(name = "image_url")
     private String imageUrl;
 
     @Column(name = "content_type")
     private String contentType;
 
+    /** Pre-migration image bytes, retained only as the rollback path for the move to R2 — nothing
+     *  writes to this any more, and a follow-up migration drops it once every image is confirmed
+     *  rendering from {@link #imageUrl}. Reclaiming its ~22MB needs a VACUUM FULL. */
     @Column(name = "image_data")
     private byte[] imageData;
 

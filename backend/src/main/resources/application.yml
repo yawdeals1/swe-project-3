@@ -29,6 +29,15 @@ carvo:
     # means that cleanup step no-ops (see DeploroAuthClient.deleteAccountByEmail).
     admin-api-url: ${DEPLORO_ADMIN_API_URL:}
     admin-api-token: ${DEPLORO_ADMIN_API_TOKEN:}
+    # Deploro's platform API host and this project's id, used to upload vehicle photos to the
+    # project's R2 bucket (POST {api-base-url}/api/projects/{project-id}/storage/upload) and to
+    # build the public read URL ({api-base-url}/files/{slug}/{key}). Defaulted rather than left
+    # blank like admin-api-url above: these two are fixed properties of this project, not
+    # per-environment secrets, and a blank value here would silently break photo uploads. The
+    # admin-api-token above is what actually authenticates the upload, and it must be
+    # project-admin scoped — list and download accept any member, upload and delete do not.
+    api-base-url: ${DEPLORO_API_BASE_URL:https://api.deploro.com}
+    project-id: ${DEPLORO_PROJECT_ID:95393e26-3d52-4482-8bfc-028961c96d7f}
   admin:
     seed-email: ${ADMIN_SEED_EMAIL:admin@carvo.local}
     seed-password: ${ADMIN_SEED_PASSWORD:}
