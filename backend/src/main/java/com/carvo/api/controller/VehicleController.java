@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -82,15 +83,39 @@ public class VehicleController {
         return vehicleService.deleteImage(id, imageId);
     }
 
+    /**
+     * Points callers at the image's real home in Deploro R2 rather than streaming it. Vehicle
+     * photos are no longer served from this API — {@code imageUrls} in every vehicle response now
+     * carries the absolute R2 URL, so the browser fetches it straight off the CDN and this route
+     * only exists for links minted before that change (and for the blob fallback below).
+     *
+     * <p>Redirecting instead of proxying is the point: proxying the bytes would put every image
+     * back on this server's bandwidth and throw away the hour of CDN caching the public URL gets
+     * for free.
+     */
     @GetMapping("/images/{imageId}")
     public ResponseEntity<byte[]> getImage(@PathVariable Long imageId) {
         VehicleImage image = vehicleService.getImage(imageId);
+        String url = image.getImageUrl();
+        if (url != null && !url.isBlank()) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, url)
+                    // Short, unlike the immutable blob response below: the redirect target is a
+                    // property of the row, so a corrected URL must be able to take effect.
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=300")
+                    .build();
+        }
+        // Rollback path only — no row should reach this after V5's backfill. Kept until the
+        // follow-up migration drops image_data.
+        if (image.getImageData() == null) {
+            return ResponseEntity.notFound().build();
+        }
         MediaType mediaType = image.getContentType() != null
                 ? MediaType.parseMediaType(image.getContentType())
                 : MediaType.APPLICATION_OCTET_STREAM;
         return ResponseEntity.ok()
                 .contentType(mediaType)
-                .header("Cache-Control", "public, max-age=31536000, immutable")
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
                 .body(image.getImageData());
     }
 }

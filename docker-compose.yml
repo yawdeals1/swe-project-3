@@ -49,6 +49,14 @@ services:
       # deployed public URL, so the credentialed-CORS surface isn't left open by default even
       # though "backend" has no published port. Falls back to local dev's "web" origin when unset.
       - CARVO_WEB_ALLOWED_ORIGINS
+      # Vehicle photos are uploaded to the project's Deploro R2 bucket rather than a bytea column,
+      # and that upload needs a project-admin token. Both of these are already set as VPS env vars
+      # (so they land in this stack's .env), but compose only passes into a container what is
+      # listed here — without these two lines the backend sees empty strings and every photo
+      # upload fails with "DEPLORO_ADMIN_API_TOKEN is not configured". Passed through bare, same
+      # as the vars above, so they are simply absent in an environment that has not set them.
+      - DEPLORO_ADMIN_API_TOKEN
+      - DEPLORO_ADMIN_API_URL
       - PORT=8080
 
   web:

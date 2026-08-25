@@ -12,11 +12,13 @@ import com.carvo.api.exception.NotFoundException;
 import com.carvo.api.repository.BranchRepository;
 import com.carvo.api.repository.VehicleImageRepository;
 import com.carvo.api.repository.VehicleRepository;
+import com.carvo.api.storage.DeploroStorageClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,14 +29,17 @@ public class VehicleService {
     private final VehicleRepository vehicleRepository;
     private final VehicleImageRepository vehicleImageRepository;
     private final BranchRepository branchRepository;
+    private final DeploroStorageClient storageClient;
 
     public VehicleService(
             VehicleRepository vehicleRepository,
             VehicleImageRepository vehicleImageRepository,
-            BranchRepository branchRepository) {
+            BranchRepository branchRepository,
+            DeploroStorageClient storageClient) {
         this.vehicleRepository = vehicleRepository;
         this.vehicleImageRepository = vehicleImageRepository;
         this.branchRepository = branchRepository;
+        this.storageClient = storageClient;
     }
 
     public List<VehicleResponse> search(String category, BigDecimal minPrice, BigDecimal maxPrice,
@@ -141,12 +146,41 @@ public class VehicleService {
         if (contentType == null) {
             throw new BadRequestException("Photos must be JPEG, PNG, WEBP, or GIF.");
         }
+
+        // The row is saved first purely to get its generated id, which is part of the storage key
+        // (vehicle-images/<vehicle_id>/<image_id>.<ext>) — the same layout the existing 46 objects
+        // use. saveAndFlush forces the INSERT now rather than at commit, so the id is available for
+        // the upload that follows. Nothing is ever written to image_data: that column exists only
+        // to hold the pre-migration blobs until a later change drops it.
         VehicleImage image = new VehicleImage();
         image.setVehicle(vehicle);
         image.setContentType(contentType);
-        image.setImageData(bytes);
+        image = vehicleImageRepository.saveAndFlush(image);
+
+        // An upload failure propagates and rolls the transaction back, taking the row above with
+        // it — better than committing a photo record whose bytes were never stored anywhere.
+        String key = "vehicle-images/" + vehicle.getId() + "/" + image.getId() + extensionFor(contentType);
+        DeploroStorageClient.StoredFile stored = storageClient.upload(key, bytes, contentType);
+
+        image.setImageUrl(stored.publicUrl());
         vehicleImageRepository.save(image);
         return toResponse(vehicle);
+    }
+
+    /**
+     * The file extension for a stored image. Deliberately an explicit mapping rather than the
+     * content type's own suffix: the pre-migration rows stored {@code image/jpeg} as ".jpg", so
+     * deriving ".jpeg" from the subtype would put new JPEGs on a different convention than the
+     * backfilled ones and break the one existing row if it were ever re-derived.
+     */
+    private static String extensionFor(String contentType) {
+        return switch (contentType) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            default -> throw new BadRequestException("Photos must be JPEG, PNG, WEBP, or GIF.");
+        };
     }
 
     @Transactional
@@ -157,7 +191,13 @@ public class VehicleService {
         if (!image.getVehicle().getId().equals(vehicleId)) {
             throw new NotFoundException("Image not found");
         }
+        String storedUrl = image.getImageUrl();
         vehicleImageRepository.delete(image);
+        // Deleting the row used to delete the bytes with it. Now that they live in R2 — publicly
+        // readable by anyone holding the key — the object has to be removed too, or a photo an
+        // admin took down stays reachable forever. Best-effort: a storage hiccup must not fail the
+        // delete the admin actually asked for.
+        storageClient.deleteQuietly(storedUrl);
         return toResponse(vehicle);
     }
 
@@ -208,18 +248,24 @@ public class VehicleService {
     private VehicleResponse toResponse(Vehicle vehicle) {
         List<String> imageUrls = vehicleImageRepository.findByVehicleId(vehicle.getId()).stream()
                 .map(VehicleService::imageUrl)
+                .filter(Objects::nonNull)
                 .toList();
         return VehicleResponse.from(vehicle, imageUrls);
     }
 
-    /** Uploaded images are served through the frontend's `/api/vehicle-images/{id}` proxy route
-     *  (the backend has no public route of its own in production); rows from before the upload
-     *  feature existed still carry their original external {@code image_url} and are passed
-     *  through as-is. */
+    /** Images are served straight from Deploro's R2 bucket: {@code image_url} holds an absolute,
+     *  unauthenticated, inline-serving URL that the browser fetches directly, so the photo comes off
+     *  a CDN with a cache lifetime instead of streaming through this API on every render.
+     *
+     *  <p>The blob fallback below is the rollback path, not a live code path — every row was
+     *  backfilled with a URL in V5, and new uploads set one at insert time. It stays until the
+     *  follow-up migration drops {@code image_data}, so that a key discovered to be wrong can be
+     *  served from Postgres again by reverting this method alone. */
     private static String imageUrl(VehicleImage image) {
-        if (image.getImageData() != null) {
-            return "/api/vehicle-images/" + image.getId();
+        String url = image.getImageUrl();
+        if (url != null && !url.isBlank()) {
+            return url;
         }
-        return image.getImageUrl();
+        return image.getImageData() != null ? "/api/vehicle-images/" + image.getId() : null;
     }
 }
